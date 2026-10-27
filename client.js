@@ -47,6 +47,8 @@ window.__ModuleLoader__.load({
       finalHint: 'Turn this off to include user inputs, intermediate replies, tools and stored reasoning.',
       sort: 'Result order', newest: 'Newest first', oldest: 'Oldest first', untitled: 'Untitled conversation',
       refresh: 'Refresh sessions', archivedHint: 'Archived conversations must be restored from the sidebar/archive manager before opening.',
+      workspace: 'Workspace', allWorkspaces: 'All workspaces', ungroupedWorkspace: 'Ungrouped / no workspace',
+      workspaceHint: 'The session list and search are restricted to the selected workspace. Changing workspace clears the selected session.',
       view: 'Result view', timeline: 'Timeline', bySession: 'By session', matches: 'matching messages',
       treeHint: 'Conversations ordered by their newest matching message (oldest when reversed). Expand a conversation to see its matches.',
       moreSessions: 'Load more sessions', loadedMatches: 'Loaded matches', groupChanged: 'History changed since the session counts were loaded. Search again to refresh.'
@@ -61,6 +63,8 @@ window.__ModuleLoader__.load({
       finalHint: '取消勾选以包含用户输入、中间回复、工具和存储的推理文本。',
       sort: '结果排序', newest: '最新优先', oldest: '最早优先', untitled: '未命名对话',
       refresh: '刷新会话', archivedHint: '请先在侧边栏或归档管理中恢复已归档会话，再打开对话。',
+      workspace: '工作区', allWorkspaces: '所有工作区', ungroupedWorkspace: '未分组 / 无工作区',
+      workspaceHint: '会话列表和搜索仅限所选工作区。切换工作区会清除已选会话。',
       view: '结果视图', timeline: '时间线', bySession: '按会话', matches: '条匹配消息',
       treeHint: '按各会话最新匹配消息排序（最早优先时反向）。展开会话以查看匹配消息。',
       moreSessions: '加载更多会话', loadedMatches: '已加载消息', groupChanged: '会话计数加载后历史记录已变化，请重新搜索以刷新。'
@@ -119,7 +123,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'en', en));
         ctx.effect(() => ctx.locale.register(NS, 'zh', zh));
         const t = ctx.locale.bind(NS);
-        const stored = {query: '', scope: '', includeSubagents: false, includeArchived: false, finalOnly: true, order: 'newest', matchCase: false, wholeWord: false, useRegex: false, view: 'timeline'};
+        const stored = {query: '', scope: '', workspaceId: '', includeSubagents: false, includeArchived: false, finalOnly: true, order: 'newest', matchCase: false, wholeWord: false, useRegex: false, view: 'timeline'};
         const focusListeners = new Set();
         const focus = () => {for (const fn of focusListeners) fn();};
         ctx.effect(() => {
@@ -190,6 +194,10 @@ window.__ModuleLoader__.load({
           }
           return {...value, more, refresh: () => {cache.current = null; setRetry(v => v + 1);}};
         }
+        function WorkspaceLabel({hit}) {
+          const name = hit.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : hit.workspaceTitle || hit.workspacePath || hit.workspaceId || t('ungroupedWorkspace');
+          return h('span', {className: 'dss-badge', title: hit.workspacePath || name}, `${t('workspace')}: ${name}`);
+        }
         function Badges({hit}) {
           return h(React.Fragment, null,
             hit.subagent && h('span', {className: 'dss-badge'}, h(BranchIcon), t('subagent')),
@@ -216,7 +224,7 @@ window.__ModuleLoader__.load({
               h('svg', {className: 'dss-chevron', width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, 'aria-hidden': true}, h('path', {d: 'm6 3 5 5-5 5'})),
               h('span', {className: 'dss-group-title'}, group.title || t('untitled')),
               h('span', {className: 'dss-group-count'}, `${group.count} · ${t('matches')}`))),
-            h('div', {className: 'dss-group-meta dss-muted'}, h(Badges, {hit: group}),
+            h('div', {className: 'dss-group-meta dss-muted'}, !request.workspaceId && h(WorkspaceLabel, {hit: group}), h(Badges, {hit: group}),
               h('span', {className: 'dss-id'}, group.sessionId),
               group.time !== undefined && h('time', {dateTime: new Date(group.time).toISOString()}, new Date(group.time).toLocaleString())),
             h('div', {id: bodyId, hidden: !expanded, className: 'dss-group-body', 'aria-busy': result.busy},
@@ -245,6 +253,8 @@ window.__ModuleLoader__.load({
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
           const [query, setQuery] = React.useState(stored.query);
           const [scope, setScope] = React.useState(stored.scope);
+          const [workspaceId, setWorkspaceId] = React.useState(stored.workspaceId);
+          const [workspaces, setWorkspaces] = React.useState([]);
           const [includeSubagents, setIncludeSubagents] = React.useState(stored.includeSubagents);
           const [includeArchived, setIncludeArchived] = React.useState(stored.includeArchived);
           const [finalOnly, setFinalOnly] = React.useState(stored.finalOnly);
@@ -260,12 +270,16 @@ window.__ModuleLoader__.load({
           const [catalogState, setCatalogState] = React.useState('loading');
           const [catalogVersion, setCatalogVersion] = React.useState(0);
           const [version, setVersion] = React.useState(0);
-          const request = {query, includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex};
+          const request = {query, workspaceId: workspaceId || undefined, includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex};
           const timeline = usePaged({...request, sessionId: scope || undefined}, !tree && Boolean(query.trim()), version);
           const {page, error, busy, more} = timeline;
           const input = React.useRef(null);
           const setText = value => {stored.query = value; setQuery(value);};
           const setTarget = value => {stored.scope = value; setScope(value);};
+          const setWorkspace = value => {
+            stored.workspaceId = value; setWorkspaceId(value);
+            setTarget(''); setFilter(''); setCatalog([]); setCatalogState('loading');
+          };
           const setSubagents = enabled => {
             stored.includeSubagents = enabled; setIncludeSubagents(enabled);
             // Turning the scope off must not leave a hidden subagent selected.
@@ -284,18 +298,20 @@ window.__ModuleLoader__.load({
             let active = true;
             const controller = new AbortController();
             setCatalogState('loading');
-            api({action: 'sessions', includeSubagents, includeArchived}, controller.signal).then(value => {
+            api({action: 'sessions', workspaceId: workspaceId || undefined, includeSubagents, includeArchived}, controller.signal).then(value => {
               if (active) {
+                setWorkspaces(value.workspaces || []);
                 setCatalog(value.items); setCatalogState('ready');
                 if (stored.scope && !value.items.some(item => item.sessionId === stored.scope)) {stored.scope = ''; setScope('');}
               }
             }).catch(err => {if (active && err.name !== 'AbortError') setCatalogState('error');});
             return () => {active = false; controller.abort();};
-          }, [catalogVersion, includeSubagents, includeArchived]);
+          }, [catalogVersion, workspaceId, includeSubagents, includeArchived]);
           const within = sessionId => {setTarget(sessionId); setFilter('');};
-          const selected = catalog.find(item => item.sessionId === scope);
-          const visible = catalog.filter(item => (includeSubagents || !item.subagent) && (includeArchived || !item.archived) && (item.sessionId === scope || `${item.title} ${item.sessionId}`.toLowerCase().includes(filter.toLowerCase())));
-          const options = visible.map(item => h('option', {key: item.sessionId, value: item.sessionId, title: item.sessionId}, `${item.title || t('untitled')}${item.subagent ? ` · ${t('subagent')}` : ''}${item.archived ? ` · ${t('archived')}` : ''} · ${shortId(item.sessionId)}`));
+          const selected = catalog.find(item => item.sessionId === scope && (!workspaceId || item.workspaceId === workspaceId));
+          const workspaceName = item => item.ungrouped || item.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : item.title || item.path || item.workspaceId;
+          const visible = catalog.filter(item => (!workspaceId || item.workspaceId === workspaceId) && (includeSubagents || !item.subagent) && (includeArchived || !item.archived) && (item.sessionId === scope || `${item.title} ${item.sessionId}`.toLowerCase().includes(filter.toLowerCase())));
+          const options = visible.map(item => h('option', {key: item.sessionId, value: item.sessionId, title: `${item.sessionId}${item.workspacePath ? ` · ${item.workspacePath}` : ''}`}, `${item.title || t('untitled')}${item.subagent ? ` · ${t('subagent')}` : ''}${item.archived ? ` · ${t('archived')}` : ''}${!workspaceId ? ` · ${item.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : item.workspaceTitle || item.workspacePath || ''}` : ''} · ${shortId(item.sessionId)}`));
           return h('section', {className: 'dss-page', 'aria-label': t('title'), onKeyDown: e => {
             if (e.key === 'Escape' && e.target.tagName !== 'SELECT') {e.preventDefault(); ctx.layout.selectPanel(null);}
           }}, h('style', null, css),
@@ -313,9 +329,15 @@ window.__ModuleLoader__.load({
                     ].map(([name, label, enabled, setEnabled]) => h('button', {key: name, type: 'button', className: `dss-mode${name === 'wholeWord' ? ' dss-mode-word' : ''}`, title: t(name), 'aria-label': t(name), 'aria-pressed': enabled, onClick: () => {stored[name] = !enabled; setEnabled(!enabled);}}, label)))),
                 h('button', {className: 'dss-primary', disabled: !query.trim(), type: 'submit'}, t('search')),
                 query && h('button', {type: 'button', onClick: () => {setText(''); input.current?.focus();}}, t('clear'))),
+              h('div', {className: 'dss-options'}, h('label', {htmlFor: 'dss-workspace'}, t('workspace')),
+                h('select', {id: 'dss-workspace', value: workspaceId, title: t('workspaceHint'), onChange: e => setWorkspace(e.target.value)},
+                  h('option', {value: ''}, t('allWorkspaces')),
+                  workspaceId && !workspaces.some(item => item.workspaceId === workspaceId) && h('option', {value: workspaceId}, workspaceId),
+                  ...workspaces.map(item => h('option', {key: item.workspaceId, value: item.workspaceId, title: item.path || workspaceName(item)}, workspaceName(item))))),
+              h('p', {className: 'dss-muted'}, t('workspaceHint')),
               h('div', {className: 'dss-scope'}, h('label', {htmlFor: 'dss-scope'}, t('scope')),
                 h('input', {type: 'search', value: filter, placeholder: t('sessionFilter'), 'aria-label': t('sessionFilter'), onChange: e => setFilter(e.target.value)}),
-                h('select', {id: 'dss-scope', value: scope, onChange: e => setTarget(e.target.value)},
+                h('select', {id: 'dss-scope', value: scope, disabled: catalogState !== 'ready', onChange: e => setTarget(e.target.value)},
                   h('option', {value: ''}, t('all')),
                   scope && !selected && h('option', {value: scope}, `${t('unavailable')} · ${scope}`),
                   ...options,
@@ -345,6 +367,7 @@ window.__ModuleLoader__.load({
                 busy && !page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : !query.trim() ? h('div', {className: 'dss-message'}, h(Icon, {size: 28}), h('p', null, t('start'))) : page?.items.length === 0 ? h('div', {className: 'dss-message'}, t(page.nextCursor ? 'pending' : 'empty')) : null,
                 page?.items.map(hit => h('article', {className: 'dss-hit', key: `${hit.sessionId}:${hit.seq}`},
                   h('div', {className: 'dss-hit-heading'}, h('h2', null, hit.title || selected?.title || t('untitled')),
+                    !workspaceId && h(WorkspaceLabel, {hit}),
                     hit.subagent && h('span', {className: 'dss-badge'}, h(BranchIcon), t('subagent')),
                     hit.archived && h('span', {className: 'dss-badge'}, t('archived'))),
                   h('div', {className: 'dss-meta dss-muted'}, h('span', null, hit.type), h('span', null, `${t('event')} #${hit.seq}`), hit.time !== undefined && h('time', {dateTime: new Date(hit.time).toISOString()}, new Date(hit.time).toLocaleString()), h('span', {className: 'dss-id'}, hit.sessionId)),

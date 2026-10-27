@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-search",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Search conversation text across all DSH sessions or within one session.",
   "type": "module",
   "license": "MIT",

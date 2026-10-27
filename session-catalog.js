@@ -8,28 +8,74 @@ export async function workspaceSnapshot(controller, signal) {
     return frame.value.value;
   } finally {await stream.return();}
 }
+export const UNGROUPED_WORKSPACE_ID = '__ungrouped__';
+// Compare exact cwd roots only; a descendant directory is not evidence of
+// registry membership. Windows roots are case-insensitive, POSIX roots are not.
+function pathKey(value) {
+  if (typeof value !== 'string' || !value) return '';
+  const path = value.replace(/\\/g, '/').replace(/\/+$/u, '') || '/';
+  return /^[a-z]:(?:\/|$)/iu.test(path) || path.startsWith('//') ? path.toLowerCase() : path;
+}
+export function workspaceCatalog(snapshot) {
+  return [...snapshot.items.map(({workspaceId, title, path, createdAt, updatedAt}) => ({workspaceId, title, path, createdAt, updatedAt, sessionCount: 0})),
+    {workspaceId: UNGROUPED_WORKSPACE_ID, title: 'Ungrouped sessions', path: '', sessionCount: 0, ungrouped: true}];
+}
+function workspaceAssignments(snapshot, records) {
+  const membership = new Map(), roots = new Map(), resolved = new Map();
+  const unique = (map, key, workspaceId) => {
+    if (!map.has(key)) map.set(key, workspaceId);
+    else if (map.get(key) !== workspaceId) map.set(key, UNGROUPED_WORKSPACE_ID);
+  };
+  for (const workspace of snapshot.items) {
+    for (const id of workspace.sessionIds) unique(membership, id, workspace.workspaceId);
+    const root = pathKey(workspace.path);
+    if (root) unique(roots, root, workspace.workspaceId);
+  }
+  return sessionId => {
+    let current = sessionId, workspaceId;
+    const chain = new Set();
+    while (current) {
+      if (membership.has(current)) {workspaceId = membership.get(current); break;}
+      if (resolved.has(current)) {workspaceId = resolved.get(current); break;}
+      if (chain.has(current)) break;
+      chain.add(current);
+      const row = records.get(current);
+      if (!row) break;
+      // An explicit parent, even archived/blank or missing from the sidebar,
+      // takes precedence over the child's cwd. Follow nested parents safely.
+      if (row.origin === 'subagent' && row.parentSessionId) {current = row.parentSessionId; continue;}
+      workspaceId = roots.get(pathKey(row.cwd));
+      break;
+    }
+    workspaceId ??= UNGROUPED_WORKSPACE_ID;
+    for (const id of chain) resolved.set(id, workspaceId);
+    return workspaceId;
+  };
+}
 export async function catalog(services, input, signal) {
-  const [list, workspaces] = await Promise.all([
+  const [list, snapshot] = await Promise.all([
     services.sessionController.list({}, signal), workspaceSnapshot(services.workspaceController, signal),
   ]);
   signal.throwIfAborted();
-  const archived = new Set(workspaces.archivedSessionIds);
-  const seen = new Set();
-  const rows = list.items.filter(row => {
-    if (seen.has(row.sessionId)) return false;
-    seen.add(row.sessionId);
-    return !row.blank && (input.includeSubagents || row.origin !== 'subagent') && (input.includeArchived || !archived.has(row.sessionId));
-  });
+  const archived = new Set(snapshot.archivedSessionIds);
+  // Keep excluded parents as assignment evidence, never as eligible results.
+  const records = new Map();
+  for (const row of list.items) if (!records.has(row.sessionId)) records.set(row.sessionId, row);
+  const rows = [...records.values()].filter(row => !row.blank && (input.includeSubagents || row.origin !== 'subagent') && (input.includeArchived || !archived.has(row.sessionId)));
   // Cold subagents need not have a cwd, so the ordinary sidebar catalog may
   // omit them. Supplement only explicit subagent origins when opted in.
   if (input.includeSubagents) {
-    const records = await services.sessionQuery.listSessions(signal);
-    for (const {header} of records) {
-      if (header.origin !== 'subagent' || seen.has(header.id) || (!input.includeArchived && archived.has(header.id))) continue;
-      seen.add(header.id);
-      rows.push({sessionId: header.id, updatedAt: header.createdAt, origin: header.origin, parentSessionId: header.parentSession, cwd: header.cwd});
+    for (const {header} of await services.sessionQuery.listSessions(signal)) {
+      if (records.has(header.id)) continue;
+      const row = {sessionId: header.id, updatedAt: header.createdAt, origin: header.origin, parentSessionId: header.parentSession, cwd: header.cwd};
+      records.set(header.id, row);
+      if (header.origin === 'subagent' && (input.includeArchived || !archived.has(header.id))) rows.push(row);
     }
   }
+  signal.throwIfAborted();
+  const workspaces = workspaceCatalog(snapshot);
+  const byWorkspace = new Map(workspaces.map(workspace => [workspace.workspaceId, workspace]));
+  const assignment = workspaceAssignments(snapshot, records);
   const titles = new Map();
   const missing = rows.filter(row => row.projections?.values?.title === undefined).map(row => row.sessionId);
   if (missing.length) {
@@ -38,9 +84,15 @@ export async function catalog(services, input, signal) {
     }
   }
   rows.sort((a, b) => b.updatedAt - a.updatedAt || (a.sessionId < b.sessionId ? -1 : a.sessionId > b.sessionId ? 1 : 0));
-  return rows.map(row => ({sessionId: row.sessionId, title: (row.projections?.values?.title ?? titles.get(row.sessionId))?.trim() || '', updatedAt: row.updatedAt,
-    cwd: row.cwd || '', archived: archived.has(row.sessionId), subagent: row.origin === 'subagent',
-    ...(row.parentSessionId ? {parentSession: row.parentSessionId} : {})}));
+  const items = rows.map(row => {
+    const workspace = byWorkspace.get(assignment(row.sessionId));
+    workspace.sessionCount++;
+    return {sessionId: row.sessionId, title: (row.projections?.values?.title ?? titles.get(row.sessionId))?.trim() || '', updatedAt: row.updatedAt,
+      cwd: row.cwd || '', archived: archived.has(row.sessionId), subagent: row.origin === 'subagent',
+      workspaceId: workspace.workspaceId, workspaceTitle: workspace.title, workspacePath: workspace.path,
+      ...(row.parentSessionId ? {parentSession: row.parentSessionId} : {})};
+  });
+  return {items, workspaces};
 }
 // A final reply is the last successful text-only assistant response in a
 // completed turn, not commentary before tools or an abandoned partial attempt.

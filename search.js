@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {Script} from 'node:vm';
 import {catalog, finalDocuments, processDocuments, LIMIT} from './session-catalog.js';
-export {catalog, finalDocuments, processDocuments, workspaceSnapshot, LIMIT} from './session-catalog.js';
+export {catalog, workspaceCatalog, finalDocuments, processDocuments, workspaceSnapshot, LIMIT, UNGROUPED_WORKSPACE_ID} from './session-catalog.js';
 
 export const MATCH_TIMEOUT_MS = 100;
 export const MAX_SNIPPET = 640;
@@ -108,7 +108,8 @@ export async function search(services, input, signal = new AbortController().sig
   const options = {includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex};
   const query = action !== 'sessions' ? string(input.query, 'query') : undefined;
   const sessionId = input.sessionId === undefined ? undefined : string(input.sessionId, 'sessionId', 512);
-  const key = digest(['v1.5', action, query, sessionId, options]);
+  const workspaceId = input.workspaceId === undefined ? undefined : string(input.workspaceId, 'workspaceId', 512);
+  const key = digest(['v1.6', action, query, sessionId, workspaceId, options]);
   let cursor;
   if (input.cursor !== undefined) {
     try {
@@ -119,10 +120,15 @@ export async function search(services, input, signal = new AbortController().sig
   const spec = {query, matchCase, wholeWord, useRegex};
   // Validate even with an empty/excluded corpus, before any service reads.
   if (action !== 'sessions') matchDocuments([], spec);
-  const rows = await catalog(services, options, signal);
-  if (action === 'sessions') return {...options, items: rows};
-  const eligible = sessionId ? rows.filter(row => row.sessionId === sessionId) : rows;
-  if (sessionId && !eligible.length) throw new Error('Session is unavailable or excluded. Refresh the list or enable its archive/subagent scope.');
+  const {items: rows, workspaces} = await catalog(services, options, signal);
+  const workspace = workspaceId === undefined ? undefined : workspaces.find(item => item.workspaceId === workspaceId);
+  if (workspaceId !== undefined && !workspace) throw new Error('Workspace is unavailable. Refresh the workspace list and search again.');
+  const selected = sessionId ? rows.find(row => row.sessionId === sessionId) : undefined;
+  if (sessionId && !selected) throw new Error('Session is unavailable or excluded. Refresh the list or enable its archive/subagent scope.');
+  if (selected && workspaceId !== undefined && selected.workspaceId !== workspaceId) throw new Error('Session does not belong to the selected workspace. Choose a session in that workspace or clear the session scope.');
+  const eligible = rows.filter(row => (!sessionId || row.sessionId === sessionId) && (workspaceId === undefined || row.workspaceId === workspaceId));
+  const scope = {scope: sessionId || 'all', workspaceId: workspaceId ?? null, workspaceTitle: workspace?.title || '', workspacePath: workspace?.path || '', workspaces};
+  if (action === 'sessions') return {...scope, ...options, items: eligible};
   const items = [], warnings = [];
   for (const row of eligible) {
     signal.throwIfAborted();
@@ -167,7 +173,7 @@ export async function search(services, input, signal = new AbortController().sig
   const offset = cursor?.offset ?? 0;
   if (offset > results.length) throw new Error('Invalid search cursor. Search again.');
   const end = offset + LIMIT;
-  return {scope: sessionId || 'all', query, ...options, items: results.slice(offset, end), total: results.length, scanned: eligible.length,
+  return {...scope, query, ...options, items: results.slice(offset, end), total: results.length, scanned: eligible.length,
     ...(action === 'groups' ? {totalMatches: items.length} : {}),
     ...(warnings.length ? {warnings} : {}),
     ...(end < results.length ? {nextCursor: Buffer.from(JSON.stringify({key, version, offset: end})).toString('base64url')} : {})};

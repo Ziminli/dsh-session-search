@@ -28,7 +28,8 @@ export function apply(ctx) {
     parameters: {type: 'object', properties: {
       action: {type: 'string', enum: ['search', 'sessions', 'groups'], description: 'Default search: matching replies/events. groups: session rows with complete event counts (total=groups, totalMatches=events). sessions: catalog without text matching.'},
       query: {type: 'string', description: 'Required for search/groups, 1–1024 characters. Default: escaped literal substring with flexible whitespace. Regex mode: JavaScript Unicode pattern source, no /delimiters/ or trailing flags. Invalid or timed-out expressions fail the entire search.'},
-      sessionId: {type: 'string', description: 'Restrict to this conversation ID; omit for all eligible sessions.'},
+      sessionId: {type: 'string', description: 'Restrict to this conversation ID within the workspace scope; omit for all eligible sessions.'},
+      workspaceId: {type: 'string', description: 'Restrict to this workspace ID; omit for all workspaces. Discover IDs from action sessions → workspaces. Use __ungrouped__ for sessions without a registered workspace. A selected session must belong to this workspace.'},
       includeSubagents: {type: 'boolean', description: 'Include subagent conversations. Default false.'},
       includeArchived: {type: 'boolean', description: 'Include archived conversations. Default false.'},
       matchCase: {type: 'boolean', description: 'Match case exactly. Default false (Unicode case-insensitive).'},

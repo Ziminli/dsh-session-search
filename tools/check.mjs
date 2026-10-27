@@ -7,7 +7,7 @@ const root = new URL('../', import.meta.url);
 const json = async path => JSON.parse(await readFile(new URL(path, root), 'utf8'));
 const manifest = await json('package.json');
 assert.equal(manifest.name, 'dsh-session-search');
-assert.equal(manifest.version, '1.0.0');
+assert.equal(manifest.version, '1.1.0');
 assert.equal(manifest.type, 'module');
 assert.equal(manifest.license, 'MIT');
 assert.equal(manifest.author, 'Zimin Li');

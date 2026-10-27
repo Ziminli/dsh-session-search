@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {performance} from 'node:perf_hooks';
 import {createHash} from 'node:crypto';
-import {search, finalDocuments, processDocuments, LIMIT, MATCH_TIMEOUT_MS, MAX_SNIPPET, MAX_RANGES} from './search.js';
+import {search, workspaceCatalog, UNGROUPED_WORKSPACE_ID, finalDocuments, processDocuments, LIMIT, MATCH_TIMEOUT_MS, MAX_SNIPPET, MAX_RANGES} from './search.js';
 import {apply} from './index.js';
 const text = text => ({type: 'text', text});
 const event = (type, seq, data, time = seq) => ({type, seq, time, data});
@@ -13,17 +13,18 @@ function turn(n, value = 'needle', time = n * 10) {
     event('turn/end', n * 4 + 2, {turn: n, reason: {kind: 'completed'}})];
 }
 const row = (sessionId, updatedAt, extra = {}) => ({sessionId, updatedAt, blank: false, projections: {values: {title: `Title ${sessionId}`}}, ...extra});
-function fixture(rows = [row('s', 20)], logs = {s: turn(1)}, archives = []) {
+function fixture(rows = [row('s', 20)], logs = {s: turn(1)}, archives = [], workspaces = []) {
   const state = {closed: 0, disposed: 0, reads: [], catalogs: 0};
   return {state,
     sessionController: {list: async (_input, signal) => {state.catalogs++; signal.throwIfAborted(); return {items: rows};}},
-    workspaceController: {async *follow() {try {yield {type: 'baseline', value: {items: [], archivedSessionIds: archives}};} finally {state.closed++;}}},
+    workspaceController: {async *follow() {try {yield {type: 'baseline', value: {items: workspaces, archivedSessionIds: archives, pinnedSessionIds: []}};} finally {state.closed++;}}},
     sessionQuery: {
       listSessions: async () => [],
       readTitleSnapshots: async ids => ids.map(sessionId => ({sessionId, status: 'fulfilled', value: {}})),
       observeSession: async id => {state.reads.push(id); if (logs[id] instanceof Error) throw logs[id]; return {events: logs[id] || [], [Symbol.dispose]: () => state.disposed++};},
     }};
 }
+const workspace = (workspaceId, sessionIds = [], path = `/work/${workspaceId}`) => ({workspaceId, sessionIds, path, title: `Workspace ${workspaceId}`, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z'});
 const ids = result => result.items.map(item => item.sessionId);
 const marked = hit => hit.ranges.map(range => hit.snippet.slice(range.start, range.end));
 async function allPages(services, input) {
@@ -49,6 +50,98 @@ test('cold subagent supplement remains opt-in and excluded scopes reject', async
   assert.deepEqual(ids(await search(f, {query: 'needle', includeArchived: true, includeSubagents: true})), ['archive', 'cold', 'child', 's']);
   await assert.rejects(search(f, {query: 'needle', sessionId: 'child'}), /excluded/);
   await assert.rejects(search(f, {query: 'needle', sessionId: 'archive'}), /excluded/);
+});
+test('workspace catalog and every action default to all workspaces and expose metadata in scoped responses', async () => {
+  const workspaces = [workspace('one', ['a']), workspace('two', ['b']), workspace('empty')];
+  const f = fixture([row('a', 30, {cwd: '/work/two'}), row('b', 20), row('loose', 10)], {a: [...turn(1), ...turn(2)], b: turn(3), loose: turn(4)}, [], workspaces);
+  assert.deepEqual(workspaceCatalog({items: workspaces}).map(x => x.workspaceId), ['one', 'two', 'empty', UNGROUPED_WORKSPACE_ID]);
+  for (const action of ['sessions', 'search', 'groups']) {
+    const input = {action, ...(action === 'sessions' ? {} : {query: 'needle'})};
+    const all = await search(f, input);
+    assert.equal(all.workspaceId, null); assert.equal(all.scope, 'all');
+    assert.deepEqual(new Set(ids(all)), new Set(['a', 'b', 'loose']));
+    assert.deepEqual(all.workspaces.map(x => [x.workspaceId, x.sessionCount]), [['one', 1], ['two', 1], ['empty', 0], [UNGROUPED_WORKSPACE_ID, 1]]);
+    for (const workspaceId of ['one', 'two', 'empty', UNGROUPED_WORKSPACE_ID]) {
+      const before = f.state.reads.length;
+      const scoped = await search(f, {...input, workspaceId});
+      assert.deepEqual(scoped.items, all.items.filter(item => item.workspaceId === workspaceId));
+      assert.deepEqual(scoped.workspaces, all.workspaces);
+      assert.equal(scoped.workspaceId, workspaceId);
+      assert.equal(scoped.workspaceTitle, all.workspaces.find(x => x.workspaceId === workspaceId).title);
+      assert.equal(scoped.workspacePath, all.workspaces.find(x => x.workspaceId === workspaceId).path);
+      if (action === 'sessions') assert.equal(f.state.reads.length, before);
+      else {
+        assert.deepEqual(f.state.reads.slice(before), workspaceId === 'one' ? ['a'] : workspaceId === 'two' ? ['b'] : workspaceId === UNGROUPED_WORKSPACE_ID ? ['loose'] : []);
+        assert.equal(scoped.scanned, workspaceId === 'empty' ? 0 : 1);
+        if (action === 'groups') assert.equal(scoped.totalMatches, workspaceId === 'one' ? 2 : workspaceId === 'empty' ? 0 : 1);
+      }
+    }
+    const a = all.items.find(x => x.sessionId === 'a');
+    assert.equal(a.workspaceId, 'one'); assert.equal(a.workspaceTitle, 'Workspace one'); assert.equal(a.workspacePath, '/work/one');
+    assert.equal(all.items.find(x => x.sessionId === 'loose').workspaceTitle, 'Ungrouped sessions');
+  }
+});
+test('workspace scopes reject stale IDs and conflicting sessions for all actions without reading logs', async () => {
+  for (const action of ['sessions', 'search', 'groups']) {
+    const f = fixture([row('a', 2), row('b', 1)], {a: turn(1), b: turn(2)}, [], [workspace('one', ['a']), workspace('two', ['b'])]);
+    const input = {action, query: 'needle'};
+    await assert.rejects(search(f, {...input, workspaceId: 'deleted'}), /Workspace is unavailable/);
+    await assert.rejects(search(f, {...input, workspaceId: 'one', sessionId: 'b'}), /does not belong to the selected workspace/);
+    await assert.rejects(search(f, {...input, workspaceId: 'one', sessionId: 'missing'}), /unavailable or excluded/);
+    assert.deepEqual(f.state.reads, []);
+    const result = await search(f, {...input, workspaceId: 'one', sessionId: 'a'});
+    assert.deepEqual(ids(result), ['a']); assert.equal(result.scope, 'a'); assert.equal(result.workspaceId, 'one');
+  }
+  for (const workspaceId of ['', ' ', 10, null, 'w'.repeat(513)]) await assert.rejects(search(fixture(), {action: 'sessions', workspaceId}), /workspaceId/);
+});
+test('workspace assignment uses registry then unique exact roots, never descendants or ambiguous membership', async () => {
+  const workspaces = [workspace('one', ['registered', 'ambiguous'], 'C:\\Work\\One\\'), workspace('two', ['ambiguous'], 'C:/Work/Two'), workspace('duplicate', [], 'c:/work/two/'), workspace('posix', [], '/Case'), workspace('root', [], 'C:/')];
+  const rows = [row('registered', 1, {cwd: 'C:/Work/Two'}), row('exact', 2, {cwd: 'c:/work/ONE/'}), row('nested', 3, {cwd: 'C:/Work/One/child'}), row('ambiguous', 4, {cwd: 'C:/Work/One'}), row('duplicate-root', 5, {cwd: 'C:/Work/Two'}), row('case-sensitive', 6, {cwd: '/case'}), row('posix-exact', 7, {cwd: '/Case/'}), row('root', 8, {cwd: 'c:\\'}), row('unknown', 9)];
+  const result = await search(fixture(rows, {}, [], workspaces), {action: 'sessions'});
+  const assigned = Object.fromEntries(result.items.map(x => [x.sessionId, x.workspaceId]));
+  assert.deepEqual(assigned, {unknown: UNGROUPED_WORKSPACE_ID, root: 'root', 'posix-exact': 'posix', 'case-sensitive': UNGROUPED_WORKSPACE_ID, 'duplicate-root': UNGROUPED_WORKSPACE_ID, ambiguous: UNGROUPED_WORKSPACE_ID, nested: UNGROUPED_WORKSPACE_ID, exact: 'one', registered: 'one'});
+});
+test('workspace assignment follows cold nested subagent parents including excluded parents, overrides cwd and stops cycles', async () => {
+  const workspaces = [workspace('one', ['parent', 'cold-parent']), workspace('two', ['explicit-child'])];
+  const rows = [row('parent', 1, {blank: true}), row('child', 2, {origin: 'subagent', parentSessionId: 'parent', cwd: '/work/two'}), row('explicit-child', 3, {origin: 'subagent', parentSessionId: 'parent'}), row('cycle-a', 4, {origin: 'subagent', parentSessionId: 'cycle-b', cwd: '/work/two'}), row('missing-parent', 5, {origin: 'subagent', parentSessionId: 'missing', cwd: '/work/two'})];
+  const f = fixture(rows, Object.fromEntries(['child', 'explicit-child', 'cycle-a', 'missing-parent', 'cold-parent', 'nested', 'cycle-b'].map((id, i) => [id, turn(i + 1)])), ['parent', 'cold-parent', 'nested'], workspaces);
+  f.sessionQuery.listSessions = async () => [
+    {header: {id: 'cold-parent', createdAt: 6, origin: 'subagent', parentSession: 'parent'}},
+    {header: {id: 'nested', createdAt: 7, origin: 'subagent', parentSession: 'cold-parent', cwd: '/work/two'}},
+    {header: {id: 'cycle-b', createdAt: 8, origin: 'subagent', parentSession: 'cycle-a', cwd: '/work/two'}},
+  ];
+  for (const action of ['sessions', 'search', 'groups']) {
+    const input = {action, query: 'needle', includeSubagents: true};
+    const visible = await search(f, {...input, workspaceId: 'one'});
+    assert.deepEqual(ids(visible), ['child']);
+    const included = await search(f, {...input, includeArchived: true, workspaceId: 'one'});
+    assert.deepEqual(new Set(ids(included)), new Set(['child', 'cold-parent', 'nested']));
+    assert.equal(included.items.find(x => x.sessionId === 'nested').archived, true);
+    assert.equal(included.items.find(x => x.sessionId === 'nested').parentSession, 'cold-parent');
+    const other = await search(f, {...input, workspaceId: 'two'});
+    assert.deepEqual(ids(other), ['explicit-child']);
+    const ungrouped = await search(f, {...input, workspaceId: UNGROUPED_WORKSPACE_ID});
+    assert.deepEqual(new Set(ids(ungrouped)), new Set(['cycle-a', 'cycle-b', 'missing-parent']));
+  }
+  assert.deepEqual(ids(await search(f, {action: 'sessions', workspaceId: 'one'})), []);
+});
+test('workspace search and group pagination isolate cursors and invalidate changed membership', async () => {
+  const rows = Array.from({length: LIMIT + 2}, (_, i) => row(`s${i}`, i));
+  const logs = Object.fromEntries(rows.map((r, i) => [r.sessionId, [...turn(1, 'needle', i), ...turn(2, 'needle', i + 100)]]));
+  const workspaces = [workspace('one', rows.map(r => r.sessionId)), workspace('two')];
+  const f = fixture(rows, logs, [], workspaces);
+  for (const action of ['search', 'groups']) {
+    const input = {action, query: 'needle', workspaceId: 'one'};
+    const first = await search(f, input);
+    for (const workspaceId of [undefined, 'two', UNGROUPED_WORKSPACE_ID]) await assert.rejects(search(f, {...input, workspaceId, cursor: first.nextCursor}), /Invalid search cursor/);
+    const all = await search(f, {action, query: 'needle'});
+    await assert.rejects(search(f, {...input, cursor: all.nextCursor}), /Invalid search cursor/);
+    assert.equal((await allPages(f, input)).length, action === 'groups' ? rows.length : rows.length * 2);
+    assert.ok((await allPages(f, input)).every(item => item.workspaceId === 'one'));
+    workspaces[0].sessionIds.pop(); workspaces[1].sessionIds.push(rows.at(-1).sessionId);
+    await assert.rejects(search(f, {...input, cursor: first.nextCursor}), /History changed/);
+    workspaces[0].sessionIds.push(workspaces[1].sessionIds.pop());
+  }
 });
 test('final projection selects only final successful text response and all preserves process documents', async () => {
   const events = [event('user/message', 0, {content: [text('user needle')]}),
@@ -345,6 +438,23 @@ test('signed-owner HTTP guard and tool/service share flags, defaults, results an
   assert.deepEqual(tool.parameters.properties.action.enum, ['search', 'sessions', 'groups']);
   assert.match(tool.parameters.properties.action.description, /totalMatches/);
   assert.match(tool.parameters.properties.query.description, /search\/groups/);
+});
+test('HTTP and tool workspace scope agree for catalogs, search and groups and expose workspace schema', async () => {
+  const f = fixture([row('a', 2), row('b', 1)], {a: [...turn(1), ...turn(2)], b: turn(3)}, [], [workspace('one', ['a']), workspace('two', ['b'])]);
+  const {route, tool, service} = routeFixture(owner, f);
+  assert.equal(tool.parameters.properties.workspaceId.type, 'string');
+  assert.match(tool.parameters.properties.workspaceId.description, /all workspace/i);
+  for (const action of ['sessions', 'search', 'groups']) {
+    const input = {action, query: 'needle', workspaceId: 'one'};
+    const res = await request(route, 'GET', `/api/local-session-search?${new URLSearchParams(input)}`);
+    assert.equal(res.code, 200); assert.ok(res.body.items.every(item => item.workspaceId === 'one'));
+    const signal = new AbortController().signal;
+    assert.deepEqual(res.body, await tool.execute(input, {signal})); assert.deepEqual(res.body, await service.search(input, signal));
+    const conflict = {...input, sessionId: 'b'};
+    const invalid = await request(route, 'GET', `/api/local-session-search?${new URLSearchParams(conflict)}`);
+    assert.equal(invalid.code, 400); assert.match(invalid.body.error, /does not belong/);
+    await assert.rejects(tool.execute(conflict, {signal}), {message: invalid.body.error});
+  }
 });
 test('HTTP/tool syntax and timeout errors have parity and never return partial hits', async () => {
   const {route, tool} = routeFixture(owner);

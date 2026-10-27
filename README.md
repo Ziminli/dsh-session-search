@@ -4,10 +4,11 @@ English | [简体中文](<README.zh-CN.md>)
 
 Find text across your DeepSeek Harness (DSH) conversation history—across all sessions or within one conversation. Open the search panel from the sidebar or with **Ctrl+F / ⌘F**.
 
-An independent community plugin, not an official DSH package. **Public version: 1.0.0.**
+An independent community plugin, not an official DSH package. **Package version: 1.1.0.**
 
 ## Features
 
+- **All workspaces or one workspace**, with a dependent session picker and workspace labels in all-workspace results (Timeline and By session).
 - **All sessions or one session**, with a title/ID filter and a latest-user-activity-first conversation picker.
 - VS Code-style **Aa (Match Case)**, **ab (Whole Word)** and **.* (Regular Expression)** toggles, combinable with one another.
 - **Timeline** results or collapsible **By session** groups with complete matching-message counts.
@@ -53,11 +54,12 @@ This is tool input, not a shell command. Replace the target with the actual abso
 ## Usage
 
 1. Click the sidebar magnifying glass or press **Ctrl+F / ⌘F**. Type to search after a short debounce, or press Enter.
-2. Keep **All sessions**, select a conversation, or click **Search this session** on a result. Filter the picker by title or ID. It shows whole conversations, latest user activity first; forks and Ungrouped conversations remain valid choices, and unnamed conversations use a readable fallback title.
-3. Adjust matching and scope options. **Final model replies only** starts on; **Include subagent conversations** and **Include archived sessions** start off.
-4. Choose result order and, for all-session scope, **Timeline / By session**. Groups are ordered by their newest matching message, or oldest matching message when reversed. A message counts once even when the query occurs repeatedly in it.
-5. Expand groups and use **Load more results / Load more sessions** (40 entries per page). Group counts include all matching events, not just loaded pages.
-6. Click **Refresh sessions** after activity, rename, deletion or archival elsewhere. **Open conversation** navigates to an unarchived conversation, but cannot scroll to the exact matching event. Restore archived sessions in DSH's sidebar/archive manager before opening; search never restores them.
+2. **All workspaces** is the default. Select a workspace to restrict both the session dropdown and search; changing workspace clears the selected session and the title/ID filter. **Ungrouped / no workspace** keeps conversations outside registered workspaces searchable. In all-workspace scope, results and session choices show workspace names; hover a workspace label to see its path.
+3. Keep **All sessions**, select a conversation, or click **Search this session** on a result. Filter the picker by title or ID. It shows whole conversations, latest user activity first; forks and Ungrouped conversations remain valid choices, and unnamed conversations use a readable fallback title.
+4. Adjust matching and scope options. **Final model replies only** starts on; **Include subagent conversations** and **Include archived sessions** start off.
+5. Choose result order and, for all-session scope, **Timeline / By session**. Groups are ordered by their newest matching message, or oldest matching message when reversed. A message counts once even when the query occurs repeatedly in it.
+6. Expand groups and use **Load more results / Load more sessions** (40 entries per page). Group counts include all matching events, not just loaded pages.
+7. Click **Refresh sessions** after activity, rename, deletion or archival elsewhere. **Open conversation** navigates to an unarchived conversation, but cannot scroll to the exact matching event. Restore archived sessions in DSH's sidebar/archive manager before opening; search never restores them.
 
 Escape or the close button returns to the conversation. Query/options survive while the client module stays loaded; loaded pages and expansion state survive view switches while the panel stays mounted. These are not permanent settings across application restarts. For native browser page-find while the plugin owns Ctrl+F/⌘F, use the browser menu.
 
@@ -85,7 +87,9 @@ Every eligible session is scanned before pagination so chronological ordering an
 - `action: "groups"`: paged conversation groups; `total` counts groups and `totalMatches` counts matching events.
 - `action: "sessions"`: eligible session catalog without text matching.
 
-Options: `query`, optional `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord` and `useRegex`. Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
+`workspaceId` restricts all three actions to one workspace; omit it for all workspaces. Discover IDs from the `sessions` response's `workspaces` catalog, including `__ungrouped__`. Responses include workspace scope metadata, and each session, hit and group carries `workspaceId`, `workspaceTitle` and `workspacePath`. An unknown workspace or a session outside the selected workspace is rejected instead of broadening the search. Registered sidebar membership takes priority; an exact, unambiguous cwd-root match is the fallback. Ambiguous or unmatched conversations remain Ungrouped; subagents inherit their parent's workspace. Continuation cursors bind the workspace scope.
+
+Options: `query`, optional `workspaceId` and `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord` and `useRegex`. Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
 
 ## Privacy and safety
 
