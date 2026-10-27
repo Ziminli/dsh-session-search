@@ -34,7 +34,7 @@
   ],
   "scripts": {
     "check": "node tools/check.mjs",
-    "test": "node --test --test-isolation=none"
+    "test": "node --test search.test.js"
   },
   "dsh": {
     "bundle": {"patch": "./cordis.patch.yml"},

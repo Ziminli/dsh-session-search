@@ -19,7 +19,7 @@ assert.equal(manifest.repository.url, 'git+https://github.com/Ziminli/dsh-sessio
 for (const key of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
   assert.ok(!manifest[key] || Object.keys(manifest[key]).length === 0, `${key} must be empty`);
 }
-assert.deepEqual(manifest.scripts, {check: 'node tools/check.mjs', test: 'node --test --test-isolation=none'});
+assert.deepEqual(manifest.scripts, {check: 'node tools/check.mjs', test: 'node --test search.test.js'});
 assert.deepEqual(manifest.exports, {'.': './index.js', './client': './client.js', './locale/*.json': './locale/*.json', './icon': './icon.svg'});
 assert.deepEqual(manifest.files, ['index.js', 'search.js', 'session-catalog.js', 'client.js', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'README.md', 'README.zh-CN.md', 'LICENSE']);
 assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml');
