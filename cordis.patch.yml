@@ -1,0 +1,3 @@
+- insert:
+    - id: local-session-search
+      name: dsh-session-search

@@ -1,0 +1,47 @@
+{
+  "name": "dsh-session-search",
+  "version": "1.0.0",
+  "description": "Search conversation text across all DSH sessions or within one session.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Zimin Li",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ziminli/dsh-session-search.git"
+  },
+  "homepage": "https://github.com/Ziminli/dsh-session-search#readme",
+  "bugs": {"url": "https://github.com/Ziminli/dsh-session-search/issues"},
+  "keywords": ["dsh-plugin", "dsh", "session-search", "conversation-search"],
+  "engines": {"node": ">=22"},
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "search.js",
+    "session-catalog.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/en.json",
+    "locale/zh.json",
+    "icon.svg",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node tools/check.mjs",
+    "test": "node --test --test-isolation=none"
+  },
+  "dsh": {
+    "bundle": {"patch": "./cordis.patch.yml"},
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+    }
+  }
+}
