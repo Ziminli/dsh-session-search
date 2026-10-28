@@ -32,7 +32,7 @@ assert.deepEqual(manifest.scripts, {check: 'node tools/check.mjs', test: 'node -
 assert.deepEqual(manifest.exports, {'.': './index.js', './client': './client.js', './locale/*.json': './locale/*.json', './icon': './icon.svg'});
 assert.deepEqual(manifest.files, ['index.js', 'settings.js', 'search.js', 'session-catalog.js', 'client.js', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'docs/community-listing.yml', 'LICENSE']);
 assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml');
-assert.deepEqual(manifest.dsh.client, {platform: 'web', immediately: true, inject: ['@deepseek-ai/dsh-client-ui-conversation']});
+assert.deepEqual(manifest.dsh.client, {platform: 'web', immediately: true, inject: ['@deepseek-ai/dsh-client-ui-conversation', '@deepseek-ai/dsh-client-ui-plugin-manager']});
 for (const path of manifest.files) assert.ok((await stat(new URL(path, root))).isFile(), `${path} must exist`);
 for (const language of ['en', 'zh']) {
   const {meta} = await json(`locale/${language}.json`);

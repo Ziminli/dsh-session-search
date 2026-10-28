@@ -6,7 +6,7 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.3.5.**
+An independent community plugin, not an official DSH package. **Package version: 1.3.6.**
 
 ## Features
 
@@ -58,7 +58,7 @@ This is tool input, not a shell command. Replace the target with the actual abso
 
 ## Usage
 
-1. Click the sidebar magnifying glass or press **Ctrl+F / ⌘F**. By default, typing searches after a 300 ms debounce. Under **Plugins → Session Search**, set **When to search → Only on Enter / Search** and Save to require explicit submission. In that mode, text and filter changes wait together; stale outcomes are hidden until you submit.
+1. Click the sidebar magnifying glass or press **Ctrl+F / ⌘F**. By default, typing searches after a 300 ms debounce. Use the top-right **Settings** shortcut to open **Plugins → Session Search** without changing the selected conversation. There, set **When to search → Only on Enter / Search** and Save to require explicit submission. In that mode, text and filter changes wait together; stale outcomes are hidden until you submit.
 2. **All workspaces** is the default. Open the workspace picker to select one or more workspaces; changing selection clears selected sessions. **Clear selection (all)** restores all-workspace scope. **Ungrouped / no workspace** includes conversations outside registered workspaces. Session choices and cross-workspace results show workspace names; hover a label to see its path.
 3. Keep **All sessions**, select multiple conversations using checkboxes, or click **Search this session** on a result. Filter picker options by title or ID; **Select all listed** adds the currently filtered choices. Each choice is a whole conversation, latest user activity first. Forks and unnamed conversations remain available. Workspace and session selections intersect.
 4. Adjust matching, scope and **Message time** options. Presets include Today, Last 24 hours, Last 7 days and This month. Custom start/end dates use your browser's local timezone; an end date includes that entire calendar day. Either bound may be omitted. Time uses individual message timestamps, not session activity, and relative windows stay fixed while loading more. **Final model replies only** starts on; subagents and archived sessions start off.

@@ -8,6 +8,35 @@ const begin = source.indexOf('    function localDay(');
 const end = source.indexOf('    return {\n      inject:', begin);
 assert.ok(begin > 0 && end > begin);
 const {localDay, timeBounds, selectedChatNodeKeys, loadSelectedMessage} = Function(`${source.slice(begin, end)}; return {localDay, timeBounds, selectedChatNodeKeys, loadSelectedMessage};`)();
+const settingsStart = source.indexOf('    function openPluginSettings(');
+assert.ok(settingsStart > 0 && settingsStart < begin);
+const openPluginSettings = Function(`${source.slice(settingsStart, begin)}; return openPluginSettings;`)();
+
+test('settings shortcut opens this exact bundle without changing session or configuration', () => {
+  const calls = [];
+  assert.equal(openPluginSettings({get: name => {
+    assert.equal(name, 'pluginNavigation');
+    return {openBundle: name => calls.push(name)};
+  }}), true);
+  assert.deepEqual(calls, ['dsh-session-search']);
+});
+
+test('missing settings navigation fails explicitly and navigation exceptions remain observable', () => {
+  for (const navigation of [undefined, {}, {openBundle: true}]) {
+    assert.equal(openPluginSettings({get: () => navigation}), false);
+  }
+  assert.throws(() => openPluginSettings({get: () => ({openBundle: () => {throw new Error('unavailable');}})}), /unavailable/);
+  assert.match(source, /catch \{setNavigationError\(true\);\}/);
+  assert.match(source, /navigationError && h\('p', \{className: 'dss-error', role: 'alert'\}, t\('settingsUnavailable'\)\)/);
+});
+
+test('settings shortcut is a localized accessible header button, not a form submission', () => {
+  const header = source.slice(source.indexOf("h('header', {className: 'dss-head'}"), source.indexOf("h('div', {className: 'dss-body'}"));
+  assert.match(header, /type: 'button', title: t\('openSettings'\), 'aria-label': t\('openSettings'\), onClick: openSettings/);
+  assert.match(header, /t\('settings'\)/);
+  assert.match(source, /settings: 'Settings', openSettings: 'Open Session Search settings'/);
+  assert.match(source, /settings: '设置', openSettings: '打开会话搜索设置'/);
+});
 
 // Exercise the actual navigation operations with service spies, not a rendered UI.
 const navigationStart = source.indexOf('        function openHighlightedConversation(');

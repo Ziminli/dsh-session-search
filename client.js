@@ -8,6 +8,7 @@ window.__ModuleLoader__.load({
     const en = {
       title: 'Session Search', intro: 'Find text in your conversation history.', all: 'All sessions', scope: 'Search scope',
       placeholder: 'Search conversation text…', search: 'Search', clear: 'Clear', close: 'Back to conversation',
+      settings: 'Settings', openSettings: 'Open Session Search settings', settingsUnavailable: 'Plugin settings navigation is unavailable. Open Plugins → Session Search instead.',
       loading: 'Searching…', empty: 'No matches found. Try different text or broaden your scope.',
       start: 'Search all sessions, or choose one session to find individual messages.',
       grouped: 'Every matching reply/event across conversations.',
@@ -24,6 +25,7 @@ window.__ModuleLoader__.load({
     const zh = {
       title: '会话搜索', intro: '在历史对话中查找文本。', all: '所有会话', scope: '搜索范围',
       placeholder: '搜索对话文本…', search: '搜索', clear: '清空', close: '返回对话',
+      settings: '设置', openSettings: '打开会话搜索设置', settingsUnavailable: '暂时无法打开插件设置，请从“插件 → 会话搜索”进入。',
       loading: '正在搜索…', empty: '没有匹配结果。请尝试其他文本或扩大搜索范围。',
       start: '搜索所有会话，或选择指定会话来查找各条消息。',
       grouped: '显示所有对话中的全部匹配回复或事件。',
@@ -146,7 +148,7 @@ window.__ModuleLoader__.load({
         h('circle', {cx: 10.5, cy: 10.5, r: 6.8}), h('path', {d: 'm16 16 5 5'}));
     }
     function Glyph({kind, size = 15}) {
-      const paths = {refresh: 'M20 7v5h-5 M4 17v-5h5 M6.1 7a7 7 0 0 1 11.5-2L20 8 M4 16l2.4 3A7 7 0 0 0 18 17', arrow: 'M5 12h14 M13 6l6 6-6 6', timeline: 'M8 5h12 M8 12h12 M8 19h12 M3 5h.01 M3 12h.01 M3 19h.01', folder: 'M3 7h6l2-3h5l2 3h3v13H3z', back: 'M19 12H5 M11 6l-6 6 6 6'};
+      const paths = {refresh: 'M20 7v5h-5 M4 17v-5h5 M6.1 7a7 7 0 0 1 11.5-2L20 8 M4 16l2.4 3A7 7 0 0 0 18 17', arrow: 'M5 12h14 M13 6l6 6-6 6', timeline: 'M8 5h12 M8 12h12 M8 19h12 M3 5h.01 M3 12h.01 M3 19h.01', folder: 'M3 7h6l2-3h5l2 3h3v13H3z', back: 'M19 12H5 M11 6l-6 6 6 6', settings: 'M4 7h16 M4 17h16 M8 4v6 M16 14v6'};
       return h('svg', {width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true}, h('path', {d: paths[kind] || paths.arrow}));
     }
     function BranchIcon() {
@@ -168,6 +170,13 @@ window.__ModuleLoader__.load({
       }
       parts.push(source.slice(start));
       return h(React.Fragment, null, ...parts);
+    }
+    // Resolve at click time so a temporarily unavailable manager never blanks Search.
+    function openPluginSettings(ctx) {
+      const navigation = ctx.get('pluginNavigation');
+      if (typeof navigation?.openBundle !== 'function') return false;
+      navigation.openBundle('dsh-session-search');
+      return true;
     }
     // Parse date inputs as browser-local calendar dates, never UTC date-only strings.
     function localDay(value) {
@@ -797,6 +806,11 @@ window.__ModuleLoader__.load({
           const timeline = usePaged(request, enabled && !tree, revision, delay);
           const {page, error, busy, more} = timeline;
           const input = React.useRef(null);
+          const [navigationError, setNavigationError] = React.useState(false);
+          const openSettings = () => {
+            try {setNavigationError(!openPluginSettings(ctx));}
+            catch {setNavigationError(true);}
+          };
           const setText = value => {stored.query = value; setQuery(value); if (!value.trim()) {setSubmitted(null); setSelectionError(''); setVersion(v => v + 1);}};
           const setTarget = values => {
             // Validate the raw selection; never silently truncate Select all.
@@ -917,8 +931,10 @@ window.__ModuleLoader__.load({
               h('div', {className: 'dss-brand'}, h('span', {className: 'dss-emblem'}, h(Icon, {size: 22})),
                 h('div', null, h('h1', null, t('title')), h('p', {className: 'dss-muted'}, t('intro')))),
               h('nav', {className: 'dss-head-actions', 'aria-label': t('navigation')}, h('kbd', {className: 'dss-shortcut'}, t('shortcut')),
+                h('button', {type: 'button', title: t('openSettings'), 'aria-label': t('openSettings'), onClick: openSettings}, h(Glyph, {kind: 'settings', size: 16}), t('settings')),
                 h('button', {className: 'dss-icon-button', type: 'button', title: t('close'), 'aria-label': t('close'), onClick: () => ctx.layout.selectPanel(null)}, h(Glyph, {kind: 'back', size: 19})))),
             h('div', {className: 'dss-body'}, h('div', {className: 'dss-inner'},
+              navigationError && h('p', {className: 'dss-error', role: 'alert'}, t('settingsUnavailable')),
               h('section', {className: 'dss-controls', 'aria-label': t('filters')},
                 h('form', {className: 'dss-form', onSubmit: e => {e.preventDefault(); if (!e.nativeEvent?.isComposing) submit();}}, 
                   h('div', {className: 'dss-searchbox'}, h(Icon, {size: 18}),

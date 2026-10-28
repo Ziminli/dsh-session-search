@@ -4,6 +4,11 @@ All package version changes must have an entry here before release. Entries are 
 
 Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
 
+## [1.3.6] - 2026-10-28
+
+### Added / 新增
+- Add a localized **Settings** shortcut to the search panel’s top-right corner. It opens the existing Session Search bundle settings through Plugin Manager’s supported navigation API without changing the selected conversation; unavailable navigation displays a fallback instruction instead of failing silently. / 搜索面板右上角新增中英文**设置**快捷入口，通过插件管理器公开导航 API 打开现有会话搜索设置页，不改变当前选中的对话；无法导航时显示备用进入方式，不再静默失败。
+
 ## [1.3.5] - 2026-10-28
 
 ### Fixed / 修复

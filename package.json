@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-search",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "Search stored DSH conversation text across all or selected workspaces and sessions, with exact, regular-expression, typo-tolerant or word-internal subsequence matching.",
   "type": "module",
   "license": "MIT",
@@ -44,7 +44,7 @@
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-plugin-manager"]
     }
   }
 }
