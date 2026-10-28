@@ -2,6 +2,13 @@
 
 Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
 
+## [1.3.3] - 2026-10-28
+
+### Fixed / 修复
+- Preserve the selected search event sequence and load history through that event before opening the highlighted conversation; stale navigation and load failures no longer silently open the latest page. / 保留选中搜索结果的事件序号，打开高亮对话前加载至该事件；过期导航或加载失败不会静默打开最新一页。
+- Prioritize the selected Chat message within the bounded highlight scan and scroll its matching rendered text into view. An exact-row compatibility adapter never guesses at nearby messages; collapsed/unavailable content is explicitly reported, and user interaction stops automatic scrolling. / 在有限高亮扫描中优先处理选定 Chat 消息，并滚动至其中已渲染的匹配；精确行兼容适配器不会猜测附近消息，折叠/不可显示内容会明确提示，用户操作后停止自动滚动。
+- Explain that highlight limits (200,000 UTF-16 units / 500 blocks / 2,048 marks) constrain display painting only, not search outcomes; make status text wrap instead of hiding the explanation behind an ellipsis. / 明确高亮上限（20 万 UTF-16 单元 / 500 文本块 / 2,048 区域）仅限制显示标黄，不减少搜索结果；状态文字换行显示，不再省略说明。
+
 ## [1.3.2] - 2026-10-28
 
 ### Fixed / 修复
@@ -77,6 +84,7 @@ Each historical version is published with its own recovered source snapshot, ann
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
+[1.3.3]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.3
 [1.3.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.2
 [1.3.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.0

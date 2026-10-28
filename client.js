@@ -109,7 +109,17 @@ window.__ModuleLoader__.load({
       workspaceLimit: '最多选择 200 个工作区，或清除选择以搜索所有工作区。'
     });
     Object.assign(en, {conversationHighlights: 'Search highlights', clearHighlights: 'Clear highlights (Esc)', highlighting: 'Highlighting loaded conversation text…', highlightReady: 'Matching text is highlighted. Press Esc to clear.', highlightEmpty: 'No matches in the currently displayed text. Load older messages or expand collapsed content to highlight more.', highlightLimited: 'Highlight limit reached; only part of the displayed text is highlighted.', highlightZeroWidth: 'Nonempty matches are highlighted; zero-width regex matches have no text to paint.', highlightUnavailable: 'This browser does not support conversation highlights.', highlightFailed: 'Could not highlight conversation text.'});
+    Object.assign(en, {
+      highlightLimited: 'Display highlighting is capped (200,000 characters / 500 blocks / 2,048 marks). The selected message is prioritized; search results are not reduced.',
+      highlightTargetHidden: 'The selected event is loaded, but its text is collapsed or not shown in Chat. Expand the relevant turn, reasoning or tool result.',
+      highlightJumpFailed: 'Could not load the selected message. Return to search and try again.'
+    });
     Object.assign(zh, {conversationHighlights: '搜索高亮', clearHighlights: '清除高亮（Esc）', highlighting: '正在高亮已加载的对话文本…', highlightReady: '匹配文本已高亮。按 Esc 清除。', highlightEmpty: '当前显示的文本中没有匹配。加载更早消息或展开折叠内容可继续高亮。', highlightLimited: '已达到高亮上限，仅高亮部分显示文本。', highlightZeroWidth: '已高亮非空匹配；零宽正则匹配没有可标黄文本。', highlightUnavailable: '当前浏览器不支持对话高亮。', highlightFailed: '无法高亮对话文本。'});
+    Object.assign(zh, {
+      highlightLimited: '显示高亮已达上限（20 万字符 / 500 文本块 / 2,048 处标记）。优先处理所选消息；搜索结果并未减少。',
+      highlightTargetHidden: '所选事件已加载，但文本处于折叠状态或未在聊天视图中显示。请展开对应轮次、推理或工具结果。',
+      highlightJumpFailed: '无法加载所选消息。请返回搜索后重试。'
+    });
     const css = `
     .dss-page{box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;width:100%;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:14px;line-height:1.5;container-type:inline-size}
     .dss-page *{box-sizing:border-box}.dss-page [hidden]{display:none!important}.dss-page p{margin:0}.dss-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.65}
@@ -181,6 +191,21 @@ window.__ModuleLoader__.load({
       const date = new Date(now); date.setHours(0, 0, 0, 0);
       if (preset === 'month') date.setDate(1);
       return {after: date.getTime(), before: now};
+    }
+    // Exact event identities only. Chat anchors can precede assistant settlement;
+    // never navigate to the numerically nearest row (that could be another reply).
+    function selectedChatNodeKeys(chat, seq) {
+      if (!Number.isSafeInteger(seq) || !chat?.order || !chat.nodes?.get) return [];
+      return chat.order.filter(key => {
+        const node = chat.nodes.get(key);
+        return node && [node.anchorSeq, node.data?.seq, node.data?.finalNode?.seq, node.data?.root?.seq].includes(seq);
+      });
+    }
+    async function loadSelectedMessage(reference, intent, isCurrent) {
+      await reference.ready;
+      if (!isCurrent()) return false;
+      if (Number.isSafeInteger(intent.seq)) await reference.binding.session.loadThrough(intent.seq);
+      return isCurrent();
     }
     return {
       inject: ['slots', 'layout', 'locale', 'uiWorkspace', 'sessions'],
@@ -349,8 +374,8 @@ window.__ModuleLoader__.load({
           .dss-highlight-header>strong{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .dss-highlight-header>button{font:inherit;cursor:pointer;padding:5px 9px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
           .dss-highlight-header>button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
-          .dss-conversation-highlight-control{display:inline-flex;align-items:center;gap:6px;max-width:380px;color:var(--dsw-alias-label-secondary);font-size:11px}
-          .dss-conversation-highlight-control span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+          .dss-conversation-highlight-control{display:inline-flex;align-items:center;gap:6px;max-width:640px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}
+          .dss-conversation-highlight-control span{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
           .dss-conversation-highlight-control button{font:inherit;cursor:pointer;padding:3px 7px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
           .dss-conversation-highlight-control button:hover{background:var(--dsw-alias-bg-layer-2)}
           .dss-conversation-highlight-control button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
@@ -372,7 +397,10 @@ window.__ModuleLoader__.load({
             let cancelled = false, reference;
             try {
               reference = ctx.sessions.retain(intent.sessionId, {source: 'gateway'});
-              reference.ready.then(() => {if (!cancelled) setOpened({intent, reference});}, failure => {if (!cancelled) setError(failure.message);});
+              // Chat's latest page alone may not contain the selected event.
+              loadSelectedMessage(reference, intent, () => !cancelled && highlightIntent === intent).then(current => {
+                if (current) setOpened({intent, reference});
+              }).catch(failure => {if (!cancelled && highlightIntent === intent) setError(`${t('highlightJumpFailed')} ${failure.message}`);});
             } catch (failure) {setError(failure.message);}
             return () => {cancelled = true; reference?.release();};
           }, [intent]);
@@ -381,30 +409,36 @@ window.__ModuleLoader__.load({
               h('p', {role: error ? 'alert' : 'status'}, error || t('highlighting')),
               h('button', {type: 'button', onClick: clearHighlights}, t('close')));
         }
-        function HighlightedConversationBody({sessionId, renderFactorySlot, useSessions}) {
+        function HighlightedConversationBody({sessionId, renderFactorySlot, useSessions, useChat}) {
           const root = useHighlightContrast();
           const title = useSessions(snapshot => snapshot.byId[sessionId]?.title);
           return h(HighlightRoot.Provider, {value: root}, h('div', {ref: root, className: 'dss-conversation-root'},
             h('style', null, highlightCss),
             h('header', {className: 'dss-highlight-header', 'data-dss-highlight-ui': ''},
               h('strong', {title: title || sessionId}, title || t('untitled')),
-              h(ConversationHighlights, {sessionId}),
+              h(ConversationHighlights, {sessionId, useChat}),
               h('button', {type: 'button', onClick: clearHighlights}, t('close'))),
             renderFactorySlot('conversation.content', {variant: 'embedded', phase: 'active', hero: false})));
         }
         // Read only our owned subtree; CSS Custom Highlights paint DOM Ranges
         // without inserting mark tags into React's tree or changing saved text.
-        function collectHighlightBlocks(root) {
+        function collectHighlightBlocks(root, priorityRoots = []) {
           const excluded = 'script,style,textarea,input,select,button,header,nav,form,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="dialog"],[data-dss-highlight-ui]';
-          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
-          const groups = [];
-          let total = 0, visited = 0, truncated = false, node, previousBlock;
+          const groups = [], seen = new Set();
+          let total = 0, visited = 0, truncated = false;
+          // Spend the bounded budget on the clicked message before earlier history.
+          for (const scope of [...priorityRoots, root]) {
+            if (truncated) break;
+            const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+            let node, previousBlock;
           while ((node = walker.nextNode())) {
             if (++visited > 20000) {truncated = true; break;}
             if (node.nodeType === Node.ELEMENT_NODE) {
               if (node.tagName === 'BR' || node.matches(excluded)) previousBlock = null;
               continue;
             }
+            if (seen.has(node)) {previousBlock = null; continue;}
+            seen.add(node);
             const parent = node.parentElement;
             if (!parent || parent.closest(excluded) || !node.data.length || !parent.getClientRects().length) {previousBlock = null; continue;}
             const style = getComputedStyle(parent);
@@ -417,6 +451,7 @@ window.__ModuleLoader__.load({
             group.nodes.push({node, start: group.text.length, text: node.data});
             group.text += node.data; total += node.data.length;
           }
+          }
           return {blocks: groups, truncated};
         }
         function domHighlightRange(block, start, end, root) {
@@ -428,7 +463,9 @@ window.__ModuleLoader__.load({
           range.setStart(first.node, start - first.start); range.setEnd(last.node, end - last.start);
           return range;
         }
-        function ConversationHighlights({sessionId}) {
+        function ConversationHighlights({sessionId, useChat}) {
+          const chat = useChat(snapshot => snapshot);
+          const chatRef = React.useRef(chat); chatRef.current = chat;
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
           const root = React.useContext(HighlightRoot);
           const intent = React.useSyncExternalStore(fn => {highlightListeners.add(fn); return () => highlightListeners.delete(fn);}, () => highlightIntent);
@@ -439,7 +476,37 @@ window.__ModuleLoader__.load({
             const registry = window.CSS?.highlights;
             if (!registry || typeof window.Highlight !== 'function') {setStatus({intent: active, key: 'highlightUnavailable'}); return;}
             const container = root.current;
-            let timer, controller, disposed = false, generation = 0;
+            let timer, controller, disposed = false, generation = 0, landed = false, rowLocated = false, userMoved = false;
+            const stopJump = () => {userMoved = true;};
+            const stopKeyJump = event => {if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) stopJump();};
+            container.addEventListener('wheel', stopJump, {passive: true});
+            container.addEventListener('touchstart', stopJump, {passive: true});
+            container.addEventListener('pointerdown', stopJump);
+            container.addEventListener('keydown', stopKeyJump);
+            const targetRows = () => {
+              const keys = new Set(selectedChatNodeKeys(chatRef.current, active.seq));
+              // Compatibility adapter, scoped to our own embedded occurrence.
+              // Data attributes are not a public navigation API: missing/changed
+              // markup degrades to an explicit unavailable/hidden notice, never a
+              // guess at a different message.
+              return [...container.querySelectorAll('[data-chat-node-key]')].filter(row => keys.has(row.getAttribute('data-chat-node-key')));
+            };
+            const scrollRange = range => {
+              if (landed || userMoved || !range.getClientRects().length) return;
+              let viewport = range.startContainer.parentElement, scrolled = false;
+              while (viewport && viewport !== container) {
+                const style = getComputedStyle(viewport);
+                if (/(auto|scroll)/.test(style.overflowY) && viewport.scrollHeight > viewport.clientHeight) {
+                  // Tool/process bodies can scroll inside the main transcript.
+                  // Re-read the range rectangle after each inner adjustment.
+                  const rect = range.getBoundingClientRect(), box = viewport.getBoundingClientRect();
+                  viewport.scrollTo({top: Math.max(0, viewport.scrollTop + rect.top - box.top - viewport.clientHeight * .35), behavior: 'instant'});
+                  scrolled = true;
+                }
+                viewport = viewport.parentElement;
+              }
+              if (scrolled) landed = true;
+            };
             const clearPaint = () => registry.delete('dss-conversation-match');
             // Throttle, rather than trailing debounce: streaming must not postpone
             // painting the settled messages forever. Keep old valid ranges meantime.
@@ -453,7 +520,15 @@ window.__ModuleLoader__.load({
               const signal = controller.signal;
               setStatus({intent: active, key: 'highlighting'});
               try {
-                const snapshot = collectHighlightBlocks(container);
+                const rows = targetRows();
+                const visibleRows = rows.filter(row => row.getClientRects().length && getComputedStyle(row).visibility !== 'hidden');
+                if (!landed && !userMoved && !rowLocated && visibleRows.length) {
+                  visibleRows[0].scrollIntoView({block: 'center', behavior: 'instant'});
+                  rowLocated = true;
+                  // Let viewport-bound Chat content reveal after the row scroll.
+                  schedule();
+                }
+                const snapshot = collectHighlightBlocks(container, visibleRows);
                 const response = await fetch(new URL('api/local-session-search-highlight', document.baseURI), {
                   method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
                   headers: {'Content-Type': 'application/json'},
@@ -466,18 +541,23 @@ window.__ModuleLoader__.load({
                 const valid = snapshot.blocks.map(block => block.nodes.every(part => container.contains(part.node) && part.node.data === part.text));
                 if (valid.some(value => !value)) schedule();
                 const highlight = new window.Highlight();
-                let count = 0, zeroWidth = false;
+                let count = 0, zeroWidth = false, selectedRange = null;
                 for (const item of value.items || []) {
                   const block = snapshot.blocks[item.index]; if (!block || !valid[item.index]) continue;
                   for (const selected of item.ranges || []) {
                     if (selected.start === selected.end) {zeroWidth = true; continue;}
                     if (count >= 2048) break;
                     const range = domHighlightRange(block, selected.start, selected.end, container);
-                    if (range) {highlight.add(range); count++;}
+                    if (range) {
+                      highlight.add(range); count++;
+                      if (!selectedRange && rows.some(row => row.contains(range.startContainer))) selectedRange = range;
+                    }
                   }
                 }
                 registry.set('dss-conversation-match', highlight);
-                setStatus({intent: active, key: snapshot.truncated || value.truncated || value.items?.some(item => item.rangesTruncated) ? 'highlightLimited' : zeroWidth ? 'highlightZeroWidth' : count ? 'highlightReady' : 'highlightEmpty'});
+                if (selectedRange) scrollRange(selectedRange);
+                const limited = snapshot.truncated || value.truncated || count >= 2048 || value.items?.some(item => item.rangesTruncated);
+                setStatus({intent: active, key: Number.isSafeInteger(active.seq) && !selectedRange && !landed ? 'highlightTargetHidden' : limited ? 'highlightLimited' : zeroWidth ? 'highlightZeroWidth' : count ? 'highlightReady' : 'highlightEmpty', limited});
               } catch (error) {
                 if (!disposed && !signal.aborted && current === generation) {clearPaint(); setStatus({intent: active, key: 'highlightFailed', error: error.message});}
               }
@@ -490,10 +570,14 @@ window.__ModuleLoader__.load({
             });
             observer.observe(container, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'open', 'class', 'style']});
             schedule();
-            return () => {disposed = true; generation++; clearTimeout(timer); controller?.abort(); observer.disconnect(); clearPaint();};
+            return () => {
+              disposed = true; generation++; clearTimeout(timer); controller?.abort(); observer.disconnect(); clearPaint();
+              container.removeEventListener('wheel', stopJump); container.removeEventListener('touchstart', stopJump);
+              container.removeEventListener('pointerdown', stopJump); container.removeEventListener('keydown', stopKeyJump);
+            };
           }, [active, root, sessionId]);
           if (!active) return null;
-          const message = status.intent === active ? t(status.key) : t('highlighting');
+          const message = status.intent === active ? `${t(status.key)}${status.limited && status.key !== 'highlightLimited' ? ` ${t('highlightLimited')}` : ''}` : t('highlighting');
           return h('div', {'data-dss-highlight-ui': '', className: 'dss-conversation-highlight-control', role: 'status', title: `${message}${status.error ? ` ${status.error}` : ''}`},
             h('span', null, `${t('conversationHighlights')}: ${active.spec.query} — ${message}${status.intent === active && status.error ? ` ${status.error}` : ''}`),
             h('button', {type: 'button', title: t('clearHighlights'), 'aria-label': t('clearHighlights'), onClick: clearHighlights}, '×'));
@@ -501,7 +585,7 @@ window.__ModuleLoader__.load({
         function openHighlightedConversation(hit, request) {
           const spec = {query: request.query, matchCase: request.matchCase, wholeWord: request.wholeWord, useRegex: request.useRegex, fuzzy: request.fuzzy};
           const previous = highlightIntent;
-          setHighlightIntent({sessionId: hit.sessionId, spec});
+          setHighlightIntent({sessionId: hit.sessionId, seq: hit.seq, spec});
           try {ctx.uiWorkspace.openSession(hit.sessionId); ctx.layout.selectPanel(HIGHLIGHT_PANEL);} catch (error) {setHighlightIntent(previous); throw error;}
         }
         // Keep pages mounted across view switches; a switch is presentation only.
