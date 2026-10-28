@@ -2,6 +2,13 @@
 
 Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
 
+## [1.3.2] - 2026-10-28
+
+### Fixed / 修复
+- Register the highlighted conversation as a separate plugin-owned panel with an explicitly retained Session reference, rather than replacing or redeclaring the resident Conversation shell. This avoids a duplicate-slot startup failure that could hide the search UI. / 将高亮对话注册为插件独立面板，并显式持有会话引用，不再替换或重复声明原有对话外壳，避免重复插槽导致搜索界面无法启动。
+- Reuse the shared Conversation content factory for Chat rendering and input; Esc or Clear returns to the ordinary conversation and releases the highlight panel's reference. / 复用共享对话内容工厂渲染 Chat 与输入区域；Esc 或清除按钮返回普通对话，并释放高亮面板持有的引用。
+- Throttle updates so streaming cannot indefinitely postpone highlights in settled text; exclude hidden/editor/control gaps, and report zero-width regex matches without counting them as painted text. / 节流刷新，避免流式输出持续推迟已稳定文本的高亮；排除隐藏、编辑器与控件间隔，零宽正则匹配不计作已标黄文本。
+
 ## [1.3.1] - 2026-10-28
 
 ### Known issue / 已知问题
@@ -70,6 +77,7 @@ Each historical version is published with its own recovered source snapshot, ann
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
+[1.3.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.2
 [1.3.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.0
 [1.2.3]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.3

@@ -183,7 +183,7 @@ window.__ModuleLoader__.load({
       return {after: date.getTime(), before: now};
     }
     return {
-      inject: ['slots', 'layout', 'locale', 'uiWorkspace'],
+      inject: ['slots', 'layout', 'locale', 'uiWorkspace', 'sessions'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', en));
         ctx.effect(() => ctx.locale.register(NS, 'zh', zh));
@@ -325,12 +325,18 @@ window.__ModuleLoader__.load({
         }
         // View-only intent: never saved to session events, storage, or the URL.
         let highlightIntent = null;
+        let highlightPanelMounted = false;
+        const HIGHLIGHT_PANEL = 'local-session-search-highlight';
         const highlightListeners = new Set();
         const setHighlightIntent = value => {highlightIntent = value; for (const listener of highlightListeners) listener();};
+        const clearHighlights = () => {
+          setHighlightIntent(null);
+          if (highlightPanelMounted) ctx.layout.selectPanel('conversation');
+        };
         ctx.effect(() => {
           const escape = event => {
             if (event.key !== 'Escape' || event.isComposing || !highlightIntent) return;
-            event.preventDefault(); event.stopPropagation(); setHighlightIntent(null);
+            event.preventDefault(); event.stopPropagation(); clearHighlights();
           };
           window.addEventListener('keydown', escape, true);
           return () => {window.removeEventListener('keydown', escape, true); setHighlightIntent(null); window.CSS?.highlights?.delete('dss-conversation-match');};
@@ -339,16 +345,52 @@ window.__ModuleLoader__.load({
         const highlightCss = `
           .dss-conversation-root{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0;height:100%;position:relative}
           .dss-conversation-root *::highlight(dss-conversation-match){background:var(--dsw-alias-state-warn-primary);color:var(--dss-mark-ink,var(--dsw-alias-bg-base));text-decoration:none}
-          .dss-conversation-highlight-control{display:inline-flex;align-items:center;gap:6px;max-width:220px;color:var(--dsw-alias-label-secondary);font-size:11px}
+          .dss-highlight-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0;padding:12px 18px;border-bottom:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base)}
+          .dss-highlight-header>strong{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .dss-highlight-header>button{font:inherit;cursor:pointer;padding:5px 9px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
+          .dss-highlight-header>button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+          .dss-conversation-highlight-control{display:inline-flex;align-items:center;gap:6px;max-width:380px;color:var(--dsw-alias-label-secondary);font-size:11px}
           .dss-conversation-highlight-control span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
           .dss-conversation-highlight-control button{font:inherit;cursor:pointer;padding:3px 7px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
           .dss-conversation-highlight-control button:hover{background:var(--dsw-alias-bg-layer-2)}
           .dss-conversation-highlight-control button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
         `;
-        function OwnedConversation({renderSlot}) {
+        // Other main-panel keys have no ambient Session. Retain one explicit
+        // reference, bind it through our own scoped child, and release on exit.
+        function HighlightedConversation({renderSlot, SessionProvider}) {
+          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
+          const intent = React.useSyncExternalStore(fn => {highlightListeners.add(fn); return () => highlightListeners.delete(fn);}, () => highlightIntent);
+          const [opened, setOpened] = React.useState(null);
+          const [error, setError] = React.useState('');
+          React.useEffect(() => {
+            highlightPanelMounted = true;
+            return () => {highlightPanelMounted = false;};
+          }, []);
+          React.useEffect(() => {
+            setOpened(null); setError('');
+            if (!intent) return;
+            let cancelled = false, reference;
+            try {
+              reference = ctx.sessions.retain(intent.sessionId, {source: 'gateway'});
+              reference.ready.then(() => {if (!cancelled) setOpened({intent, reference});}, failure => {if (!cancelled) setError(failure.message);});
+            } catch (failure) {setError(failure.message);}
+            return () => {cancelled = true; reference?.release();};
+          }, [intent]);
+          return opened?.intent === intent && intent ? h(SessionProvider, {session: opened.reference}, renderSlot('session-search.highlight.body', {})) :
+            h('div', {className: 'dss-page'}, h('style', null, css),
+              h('p', {role: error ? 'alert' : 'status'}, error || t('highlighting')),
+              h('button', {type: 'button', onClick: clearHighlights}, t('close')));
+        }
+        function HighlightedConversationBody({sessionId, renderFactorySlot, useSessions}) {
           const root = useHighlightContrast();
+          const title = useSessions(snapshot => snapshot.byId[sessionId]?.title);
           return h(HighlightRoot.Provider, {value: root}, h('div', {ref: root, className: 'dss-conversation-root'},
-            h('style', null, highlightCss), renderSlot('main.conversation', {})));
+            h('style', null, highlightCss),
+            h('header', {className: 'dss-highlight-header', 'data-dss-highlight-ui': ''},
+              h('strong', {title: title || sessionId}, title || t('untitled')),
+              h(ConversationHighlights, {sessionId}),
+              h('button', {type: 'button', onClick: clearHighlights}, t('close'))),
+            renderFactorySlot('conversation.content', {variant: 'embedded', phase: 'active', hero: false})));
         }
         // Read only our owned subtree; CSS Custom Highlights paint DOM Ranges
         // without inserting mark tags into React's tree or changing saved text.
@@ -360,7 +402,7 @@ window.__ModuleLoader__.load({
           while ((node = walker.nextNode())) {
             if (++visited > 20000) {truncated = true; break;}
             if (node.nodeType === Node.ELEMENT_NODE) {
-              if (node.tagName === 'BR') previousBlock = null;
+              if (node.tagName === 'BR' || node.matches(excluded)) previousBlock = null;
               continue;
             }
             const parent = node.parentElement;
@@ -454,13 +496,13 @@ window.__ModuleLoader__.load({
           const message = status.intent === active ? t(status.key) : t('highlighting');
           return h('div', {'data-dss-highlight-ui': '', className: 'dss-conversation-highlight-control', role: 'status', title: `${message}${status.error ? ` ${status.error}` : ''}`},
             h('span', null, `${t('conversationHighlights')}: ${active.spec.query} — ${message}${status.intent === active && status.error ? ` ${status.error}` : ''}`),
-            h('button', {type: 'button', title: t('clearHighlights'), 'aria-label': t('clearHighlights'), onClick: () => setHighlightIntent(null)}, '×'));
+            h('button', {type: 'button', title: t('clearHighlights'), 'aria-label': t('clearHighlights'), onClick: clearHighlights}, '×'));
         }
         function openHighlightedConversation(hit, request) {
           const spec = {query: request.query, matchCase: request.matchCase, wholeWord: request.wholeWord, useRegex: request.useRegex, fuzzy: request.fuzzy};
           const previous = highlightIntent;
           setHighlightIntent({sessionId: hit.sessionId, spec});
-          try {ctx.uiWorkspace.openSession(hit.sessionId);} catch (error) {setHighlightIntent(previous); throw error;}
+          try {ctx.uiWorkspace.openSession(hit.sessionId); ctx.layout.selectPanel(HIGHLIGHT_PANEL);} catch (error) {setHighlightIntent(previous); throw error;}
         }
         // Keep pages mounted across view switches; a switch is presentation only.
         // Request keys isolate query/filter changes, and abort/generation guards
@@ -828,10 +870,13 @@ window.__ModuleLoader__.load({
         }
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({name: 'sidebar.panellist', id: PANEL, order: -10, label: () => t('title')}, Icon));
         ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: PANEL}, SearchPage));
-        // Preserve the shipped shell, width controls, composer and every Chat renderer.
-        ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: 'conversation', priority: 10,
-          children: {'main.conversation': {kind: 'single', scope: 'session-maybe'}}}, OwnedConversation));
-        ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({name: 'conversation.session.header.actions', id: 'session-search-highlights', order: 30}, ConversationHighlights));
+        // Add an isolated occurrence of the shared Conversation factory. Never
+        // redeclare or replace the shipped main/conversation slot ownership.
+        ctx.slots.inject('main', function* () {
+          yield ctx.slots.register({name: 'main', key: HIGHLIGHT_PANEL,
+            children: {'session-search.highlight.body': {kind: 'single', scope: 'session'}}}, HighlightedConversation);
+          yield ctx.slots.register({name: 'session-search.highlight.body'}, HighlightedConversationBody);
+        });
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({name: 'plugins.bundle.config', key: 'dsh-session-search', locale: NS}, SettingsForm));
       }
     };

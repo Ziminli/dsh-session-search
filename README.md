@@ -6,7 +6,7 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.3.1.**
+An independent community plugin, not an official DSH package. **Package version: 1.3.2.**
 
 ## Features
 
@@ -141,6 +141,3 @@ A ready-to-copy [community listing entry](<docs/community-listing.yml>) follows 
 ## License
 
 [MIT](<LICENSE>) © 2026 Zimin Li. The included original SVG icon is covered by the same license.
-
-
-> **Known issue / 已知问题:** This historical version can fail at startup due to a duplicate Conversation slot. Fixed in 1.3.2; install 1.3.3 instead. / 此历史版本可能因重复对话插槽无法启动；已在 1.3.2 修复，建议安装 1.3.3。
