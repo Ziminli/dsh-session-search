@@ -7,7 +7,16 @@ const root = new URL('../', import.meta.url);
 const json = async path => JSON.parse(await readFile(new URL(path, root), 'utf8'));
 const manifest = await json('package.json');
 assert.equal(manifest.name, 'dsh-session-search');
-assert.equal(manifest.version, '1.1.0');
+assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
+const changelog = await readFile(new URL('CHANGELOG.md', root), 'utf8');
+const headings = [...changelog.matchAll(/^## \[?(\d+\.\d+\.\d+)\]?(?:\s|$)/gm)].map(match => match[1]);
+assert.equal(headings[0], manifest.version, 'Newest CHANGELOG.md entry must match package version');
+assert.equal(new Set(headings).size, headings.length, 'Changelog versions must be unique');
+for (const path of ['README.md', 'README.zh-CN.md']) {
+  const readme = await readFile(new URL(path, root), 'utf8');
+  assert.ok(readme.includes(manifest.version), `${path} must mention the current version`);
+  assert.ok(readme.includes('CHANGELOG.md'), `${path} must link the changelog`);
+}
 assert.equal(manifest.type, 'module');
 assert.equal(manifest.license, 'MIT');
 assert.equal(manifest.author, 'Zimin Li');
@@ -19,9 +28,9 @@ assert.equal(manifest.repository.url, 'git+https://github.com/Ziminli/dsh-sessio
 for (const key of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
   assert.ok(!manifest[key] || Object.keys(manifest[key]).length === 0, `${key} must be empty`);
 }
-assert.deepEqual(manifest.scripts, {check: 'node tools/check.mjs', test: 'node --test search.test.js'});
+assert.deepEqual(manifest.scripts, {check: 'node tools/check.mjs', test: 'node --test search.test.js fuzzy.test.js'});
 assert.deepEqual(manifest.exports, {'.': './index.js', './client': './client.js', './locale/*.json': './locale/*.json', './icon': './icon.svg'});
-assert.deepEqual(manifest.files, ['index.js', 'search.js', 'session-catalog.js', 'client.js', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'README.md', 'README.zh-CN.md', 'LICENSE']);
+assert.deepEqual(manifest.files, ['index.js', 'search.js', 'session-catalog.js', 'client.js', 'cordis.patch.yml', 'locale/en.json', 'locale/zh.json', 'icon.svg', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'docs/community-listing.yml', 'LICENSE']);
 assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml');
 assert.deepEqual(manifest.dsh.client, {platform: 'web', immediately: true, inject: ['@deepseek-ai/dsh-client-ui-conversation']});
 for (const path of manifest.files) assert.ok((await stat(new URL(path, root))).isFile(), `${path} must exist`);
@@ -37,11 +46,17 @@ assert.equal((await readFile(new URL('cordis.patch.yml', root), 'utf8')).trim(),
 const client = await readFile(new URL('client.js', root), 'utf8');
 assert.match(client, /id: 'dsh-session-search'/);
 assert.doesNotMatch(client, /@local\//);
+// Sort must remain a theme-token segmented button group, not a native white popup.
+assert.doesNotMatch(client, /id: 'dss-order'/);
+assert.match(client, /className: 'dss-views dss-sort', role: 'group', 'aria-label': t\('sort'\)/);
+assert.match(client, /'aria-pressed': order === value/);
+assert.match(client, /stored\.order = value; setOrder\(value\)/);
+assert.match(client, /\.dss-page select option\{background:var\(--dsw-alias-bg-base\);color:var\(--dsw-alias-label-primary\)\}/);
 for (const path of ['index.js', 'search.js', 'session-catalog.js', 'client.js']) {
   const source = await readFile(new URL(path, root), 'utf8');
   assert.doesNotMatch(source, /(?:from|import)\s*['"][^'"]*-v1\.[0-9]+\.js['"]/);
 }
-for (const path of ['index.js', 'search.js', 'session-catalog.js', 'client.js', 'search.test.js', 'tools/check.mjs']) {
+for (const path of ['index.js', 'search.js', 'session-catalog.js', 'client.js', 'search.test.js', 'fuzzy.test.js', 'tools/check.mjs']) {
   const result = spawnSync(process.execPath, ['--check', fileURLToPath(new URL(path, root))], {stdio: 'inherit'});
   assert.equal(result.error, undefined, `${path}: ${result.error?.message}`);
   assert.equal(result.status, 0, `${path}: syntax check failed`);

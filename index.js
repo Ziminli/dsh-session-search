@@ -33,8 +33,9 @@ export function apply(ctx) {
       includeSubagents: {type: 'boolean', description: 'Include subagent conversations. Default false.'},
       includeArchived: {type: 'boolean', description: 'Include archived conversations. Default false.'},
       matchCase: {type: 'boolean', description: 'Match case exactly. Default false (Unicode case-insensitive).'},
-      wholeWord: {type: 'boolean', description: 'Require no adjacent Unicode letter, number or underscore around the complete match. Default false; combines with literal or regex mode.'},
-      useRegex: {type: 'boolean', description: 'Interpret query as a JavaScript Unicode regular expression instead of literal text. Default false.'},
+      wholeWord: {type: 'boolean', description: 'Require no adjacent Unicode letter, number or underscore around the complete match. Default false; combines with exact, regex or fuzzy modes.'},
+      useRegex: {type: 'boolean', description: 'Interpret query as a JavaScript Unicode regular expression instead of literal text. Default false; incompatible with fuzzy modes.'},
+      fuzzy: {type: 'string', enum: ['off', 'typo', 'subsequence'], description: 'Default off: exact text. typo: whole words within 0 edits for 1–3 characters, 1 for 4–7, 2 for 8+; includes adjacent transpositions. subsequence: ordered characters within each word (candidate length ≤4×query-word length+8). Fuzzy phrases keep words contiguous/in order, punctuation literal, whitespace flexible; max 128 Unicode characters / 16 words. Compatible with matchCase/wholeWord, not useRegex.'},
       content: {type: 'string', enum: ['final', 'all'], description: 'Default final: text of the last assistant reply in each completed turn. all: also inputs, intermediate outputs, tool text and stored reasoning.'},
       order: {type: 'string', enum: ['newest', 'oldest'], description: 'Default newest. Search sorts matching messages; groups sorts each session by its newest/oldest matching message, then ID. Catalog uses latest user activity.'},
       cursor: {type: 'string', description: 'nextCursor from the previous page with identical action, query, scope and flags; changed history requires restarting search.'}

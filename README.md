@@ -2,20 +2,24 @@
 
 English | [简体中文](<README.zh-CN.md>)
 
-Find text across your DeepSeek Harness (DSH) conversation history—across all sessions or within one conversation. Open the search panel from the sidebar or with **Ctrl+F / ⌘F**.
+Search stored DeepSeek Harness (DSH) conversation text across all or selected workspaces and sessions, with exact, regular-expression, typo-tolerant or word-internal subsequence matching. Open the search panel from the sidebar or with **Ctrl+F / ⌘F**.
 
-An independent community plugin, not an official DSH package. **Package version: 1.1.0.**
+See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
+
+An independent community plugin, not an official DSH package. **Package version: 1.2.3.**
 
 ## Features
 
 - **All workspaces or one workspace**, with a dependent session picker and workspace labels in all-workspace results (Timeline and By session).
 - **All sessions or one session**, with a title/ID filter and a latest-user-activity-first conversation picker.
 - VS Code-style **Aa (Match Case)**, **ab (Whole Word)** and **.* (Regular Expression)** toggles, combinable with one another.
+- Optional **Typo-tolerant** and **Subsequence** fuzzy modes alongside default **Exact** matching.
 - **Timeline** results or collapsible **By session** groups with complete matching-message counts.
 - **Newest first / Oldest first**, ordered by matching-message time rather than unrelated session activity.
 - Optional **subagent conversations** and **archived sessions**, clearly labeled.
 - **Final model replies only** by default; optionally search stored inputs, intermediate replies, tool calls/results and reasoning too.
-- Highlighted snippets, pagination, conversation-opening buttons, English/Chinese UI and DSH theme support.
+- A compact, theme-aware search card, grouped workspace/session filters, collapsible search tips, and result-local view/order controls.
+- Highlighted snippets, pagination, conversation-opening buttons, English/Chinese UI and DSH theme support. Narrow panels stack controls automatically; reduced-motion preferences are respected.
 - A read-only **`search_session_text`** agent tool backed by the same engine as the UI.
 - Local operation without a separate search service, FTS index, third-party dependencies or build step.
 
@@ -73,6 +77,18 @@ Escape or the close button returns to the conversation. Query/options survive wh
 
 All toggles start off: punctuation is literal, and whitespace between query terms is flexible. Query length is limited to 1,024 UTF-16 code units. Invalid patterns and matching that exceeds **100 ms per session** fail the whole search explicitly rather than silently omitting matches. Zero-width matches use a small vertical highlight. Matching runs on complete stored message text; snippets/highlights are bounded previews, not every occurrence in a long message.
 
+### Fuzzy modes
+
+Use **Text matching → Typo-tolerant / Subsequence**; **Exact** stays the default. Choosing a fuzzy mode turns Regex off; turning Regex on restores Exact. The HTTP/tool API rejects requests combining `useRegex: true` with a non-`off` `fuzzy` value.
+
+When a fuzzy search has results but no exact matches anywhere in the selected scope, a notice above the outcomes says **“No exact matches found. Below are the fuzzy matches.”** Exact detection respects case, whole-word and scope/content settings and scans complete messages before pagination. The notice is suppressed while loading, on errors or incomplete reads, and when no fuzzy results exist. A horizontal divider separates settings/explanations from results in both views.
+
+- **Typo-tolerant**: `wrokspace` or `workspce` finds `workspace`. Compares complete Unicode letter/number/underscore words using insertion, deletion, substitution and adjacent transposition (optimal string alignment). Query words of 1–3 Unicode characters allow 0 edits, 4–7 allow 1, and 8+ allow 2. The matched word is highlighted.
+- **Subsequence**: `wrkspc` finds `workspace`. Characters stay in order **inside a single word**, not across arbitrary message text; highlights mark the selected characters. Candidate words may have at most `4 × query-word length + 8` Unicode characters to limit noisy matches.
+- Multiple query words form a **contiguous phrase**, in query order, with flexible whitespace. Punctuation stays literal. Words are maximal Unicode letter/number/underscore runs, not language-aware segmentation; fuzzy search is not semantic or synonym search.
+- Match Case and Whole Word remain available. Fuzzy word tokens already compare full words; Whole Word additionally guards the complete phrase's outer edges, including punctuation-led/trailing phrases.
+- Fuzzy queries are limited to **128 Unicode code points / 16 word terms**, within the general 1,024 UTF-16-unit limit. Both modes keep chronological ordering, complete group counts, scope filtering and the same hard per-session matching deadline. Fuzzy results are not relevance-ranked.
+
 **Final replies** are text blocks from the last non-interrupted assistant message of a successfully completed turn, provided that message contains no tool call. Progress text, reasoning, tool calls/results, open/interrupted turns and tool-only endings are excluded. This is inferred from durable events, not a stored final/commentary channel label.
 
 Turn **Final model replies only** off to include stored user/system/developer inputs, intermediate assistant text, reasoning, tool calls/results and recorded failed-attempt text. Search does not retrieve hidden provider data, OCR images or open attachment files. Raw provider envelopes and stream duplicates of committed messages are not separately indexed.
@@ -89,7 +105,7 @@ Every eligible session is scanned before pagination so chronological ordering an
 
 `workspaceId` restricts all three actions to one workspace; omit it for all workspaces. Discover IDs from the `sessions` response's `workspaces` catalog, including `__ungrouped__`. Responses include workspace scope metadata, and each session, hit and group carries `workspaceId`, `workspaceTitle` and `workspacePath`. An unknown workspace or a session outside the selected workspace is rejected instead of broadening the search. Registered sidebar membership takes priority; an exact, unambiguous cwd-root match is the fallback. Ambiguous or unmatched conversations remain Ungrouped; subagents inherit their parent's workspace. Continuation cursors bind the workspace scope.
 
-Options: `query`, optional `workspaceId` and `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord` and `useRegex`. Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
+Options: `query`, optional `workspaceId` and `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord`, `useRegex` and `fuzzy` (`off`, `typo` or `subsequence`). Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
 
 ## Privacy and safety
 
@@ -110,6 +126,12 @@ No dependency installation or build step is needed. Syntax checks and synthetic 
 Runtime files: [index.js](<index.js>) (Host/HTTP/tool), [search.js](<search.js>) (matching/sorting/grouping/pagination), [session-catalog.js](<session-catalog.js>) (catalog/event extraction), [client.js](<client.js>) (UI/shortcut). Display resources include the bundle patch, localized metadata and an original SVG icon. Historical internal cursor/VM version markers are implementation identifiers, not the public package version.
 
 [Report an issue](https://github.com/Ziminli/dsh-session-search/issues) with your DSH/runtime version and a minimal synthetic example, not a private conversation export.
+
+## Releases and community listing
+
+Every package-version change must add a user-visible entry to [CHANGELOG.md](<CHANGELOG.md>); `npm run check` verifies the current version has one. Publish the matching `vX.Y.Z` Git tag and GitHub Release with notes referring to that entry. Local-only development versions are identified explicitly in the history.
+
+A ready-to-copy [community listing entry](<docs/community-listing.yml>) follows the [community contribution guide](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md): accurate one-line English/Chinese descriptions ending in a period, canonical repository URL and the `session` category. To submit it, open a separate PR to that community repository adding only `data/plugins/Ziminli__dsh-session-search.yml` with this entry. Do not edit their generated READMEs. This file in our repository is a template, **not a submitted or accepted listing**. The community also checks repository age (at least one day), the `dsh-plugin` topic, the installable `dsh.bundle` manifest and working code. Our exported SVG is for the DSH UI; the optional community `icon` field is omitted because that field requires a GitHub-hosted raster image.
 
 ## License
 

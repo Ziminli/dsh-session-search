@@ -1,7 +1,7 @@
 {
   "name": "dsh-session-search",
-  "version": "1.1.0",
-  "description": "Search conversation text across all DSH sessions or within one session.",
+  "version": "1.2.3",
+  "description": "Search stored DSH conversation text across all or selected workspaces and sessions, with exact, regular-expression, typo-tolerant or word-internal subsequence matching.",
   "type": "module",
   "license": "MIT",
   "author": "Zimin Li",
@@ -30,11 +30,13 @@
     "icon.svg",
     "README.md",
     "README.zh-CN.md",
+    "CHANGELOG.md",
+    "docs/community-listing.yml",
     "LICENSE"
   ],
   "scripts": {
     "check": "node tools/check.mjs",
-    "test": "node --test search.test.js"
+    "test": "node --test search.test.js fuzzy.test.js"
   },
   "dsh": {
     "bundle": {"patch": "./cordis.patch.yml"},
