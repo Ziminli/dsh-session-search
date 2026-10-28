@@ -2,6 +2,12 @@
 
 Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
 
+## 1.2.2 - 2026-10-28
+
+### Changed / 调整
+- Redesign the search panel with a compact search card, grouped workspace/session filters, collapsible matching tips, and result-local view/order controls. / 重整搜索面板，采用紧凑搜索卡片、分组的工作区/会话筛选、可折叠匹配提示，以及靠近结果的视图与排序控件。
+- Refine result cards, metadata badges, empty states, spacing and responsive layouts using DSH theme tokens; respect reduced-motion preferences. / 使用 DSH 主题变量优化结果卡片、信息标签、空状态、间距及响应式布局，并尊重减少动画的系统设置。
+
 ## 1.2.1 - 2026-10-28
 
 ### Added / 新增
@@ -33,6 +39,7 @@ Each historical version is published with its own recovered source snapshot, ann
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
+[1.2.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.1
 [1.2.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.1.0

@@ -79,34 +79,35 @@ window.__ModuleLoader__.load({
       treeHint: '按各会话最新匹配消息排序（最早优先时反向）。展开会话以查看匹配消息。',
       moreSessions: '加载更多会话', loadedMatches: '已加载消息', groupChanged: '会话计数加载后历史记录已变化，请重新搜索以刷新。'
     });
+    Object.assign(en, {filters: 'Search filters', tips: 'Search tips & matching rules', session: 'Session', readyTitle: 'Your conversations, within reach', emptyTitle: 'No matches yet', pendingTitle: 'More history to search', resultsHint: 'Matching messages', filterNames: 'Filter session list', navigation: 'Search navigation', typoExample: 'wrokspace → workspace', subsequenceExample: 'wrkspc → workspace'});
+    Object.assign(zh, {filters: '搜索筛选', tips: '搜索提示与匹配规则', session: '会话', readyTitle: '轻松找回对话中的细节', emptyTitle: '暂未找到匹配', pendingTitle: '还有历史记录待搜索', resultsHint: '匹配消息', filterNames: '筛选会话列表', navigation: '搜索导航', typoExample: 'wrokspace → workspace', subsequenceExample: 'wrkspc → workspace'});
     const css = `
-    .dss-page{box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;width:100%;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:14px}
-    .dss-page *{box-sizing:border-box}.dss-head{padding:24px 28px 18px;border-bottom:1px solid var(--dsw-alias-border-l1);display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
-    .dss-page h1{font-size:22px;line-height:1.35;margin:0 0 6px;font-weight:600}.dss-muted{color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.6}.dss-page p{margin:0}
-    .dss-body{overflow:auto;min-height:0;flex:1;padding:22px 28px 32px}.dss-inner{max-width:980px;margin:0 auto}.dss-form{display:flex;gap:8px;margin:0 0 16px}
-    .dss-page input,.dss-page select{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:10px 12px;min-width:0}
-    .dss-searchbox{display:flex;align-items:center;flex:1;min-width:220px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-1);padding-right:6px}.dss-page .dss-query{flex:1;width:100%;border:0;background:transparent}.dss-searchbox:focus-within{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dss-page .dss-query:focus-visible{outline:none}.dss-modes{display:flex;gap:2px;flex-shrink:0}.dss-page .dss-mode{font-family:monospace;font-size:13px;min-width:30px;padding:3px 4px;border-radius:5px;border-color:transparent;background:transparent}.dss-page .dss-mode[aria-pressed="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2)}.dss-mode-word{text-decoration:underline;text-underline-offset:3px}.dss-page input::placeholder{color:var(--dsw-alias-label-secondary)}
-    .dss-page button{font:inherit;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);padding:8px 12px;line-height:1.5}
-    .dss-page button:hover{background:var(--dsw-alias-bg-layer-2)}.dss-page button:disabled{opacity:.55;cursor:default}.dss-page button:focus-visible,.dss-page input:focus-visible,.dss-page select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
-    .dss-page .dss-primary{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
-    .dss-scope{display:grid;grid-template-columns:auto minmax(140px,1fr) minmax(150px,2fr);gap:10px;align-items:center;margin-bottom:10px}.dss-scope select{max-width:100%;width:100%}.dss-scope label{font-weight:500}
-    .dss-note{margin:18px 0 12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.dss-message{padding:32px 20px;text-align:center;border:1px dashed var(--dsw-alias-border-l2);border-radius:12px;margin-top:24px;line-height:1.7;color:var(--dsw-alias-label-secondary)}
-    .dss-divider{border:0;border-top:1px solid var(--dsw-alias-border-l2);margin:24px 0 18px;width:100%}.dss-page .dss-fuzzy-notice{padding:12px 16px;margin:0 0 16px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.6}
-    .dss-error{color:var(--dsw-alias-state-error-primary);padding:14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;margin:14px 0;overflow-wrap:anywhere}
-    .dss-hit{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);border-radius:12px;margin-bottom:12px;padding:16px 18px}.dss-hit h2{font-size:15px;margin:0 0 5px;font-weight:600;overflow-wrap:anywhere}
-    .dss-meta{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px}.dss-id{font-family:monospace;overflow-wrap:anywhere;font-size:11px}
-    .dss-options{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:12px 0 8px}.dss-check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}.dss-check input{width:16px;height:16px;margin:0;accent-color:var(--dsw-alias-brand-primary)}
-    .dss-hit-heading{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}.dss-badge{display:inline-flex;gap:5px;align-items:center;flex-shrink:0;font-size:11px;line-height:1.6;font-weight:500;color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:1px 8px;vertical-align:middle}.dss-badge svg{align-self:center}
-    .dss-snippet{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:13px;line-height:1.75;margin:10px 0 14px;max-height:260px;overflow:auto}.dss-snippet mark{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary);font-weight:600;border-radius:2px}
-    .dss-actions{display:flex;gap:8px;flex-wrap:wrap}.dss-more{display:block;margin:20px auto!important}.dss-shortcut{white-space:nowrap;font-family:monospace;border:1px solid var(--dsw-alias-border-l1);border-radius:5px;padding:2px 6px;margin-right:10px}
-    .dss-views{display:inline-flex;gap:3px;padding:3px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}.dss-page .dss-view{border-color:transparent;padding:5px 10px;background:transparent}.dss-page .dss-view[aria-pressed="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-border-l2)}
-    .dss-group{border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dss-group h2{font-size:14px;margin:0}.dss-page .dss-group-toggle{display:flex;align-items:center;text-align:left;gap:10px;width:100%;border:0;border-radius:0;padding:15px 18px;background:transparent}.dss-group-title{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}.dss-chevron{flex-shrink:0;transition:transform .12s}.dss-group-toggle[aria-expanded="true"] .dss-chevron{transform:rotate(90deg)}.dss-group-count{font-size:12px;color:var(--dsw-alias-label-secondary);white-space:nowrap}.dss-group-meta{padding:0 18px 12px 42px;display:flex;gap:10px;flex-wrap:wrap}.dss-group-body{margin:0 16px 16px 26px;padding-left:14px;border-left:2px solid var(--dsw-alias-border-l2)}.dss-group-body .dss-hit{background:var(--dsw-alias-bg-base);padding:12px 14px}.dss-group-body .dss-meta{margin-top:0}.dss-group-body .dss-message{margin-top:0;padding:18px}.dss-group-progress{padding:8px 0}.dss-group .dss-more{margin:12px auto!important}
-    .dss-zero{display:inline-block;width:2px;min-height:1em;vertical-align:text-bottom;background:var(--dsw-alias-brand-primary)}
-    @media(max-width:650px){.dss-head{padding:18px 16px}.dss-body{padding:18px 16px}.dss-scope{grid-template-columns:1fr}.dss-form{flex-wrap:wrap}.dss-searchbox{flex-basis:100%;min-width:0}.dss-shortcut{display:none}.dss-hit{padding:14px}.dss-head .dss-muted{max-width:200px}}
+    .dss-page{box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;width:100%;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:14px;line-height:1.5;container-type:inline-size}
+    .dss-page *{box-sizing:border-box}.dss-page [hidden]{display:none!important}.dss-page p{margin:0}.dss-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.65}
+    .dss-head{padding:22px 28px;display:flex;justify-content:space-between;gap:16px;align-items:center;border-bottom:1px solid var(--dsw-alias-border-l1)}.dss-brand{display:flex;align-items:center;gap:13px;min-width:0}.dss-emblem{display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:13px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}.dss-page h1{font-size:20px;line-height:1.35;letter-spacing:-.4px;margin:0 0 3px;font-weight:650}.dss-head-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
+    .dss-body{overflow:auto;min-height:0;flex:1;padding:28px 28px 40px;scrollbar-gutter:stable}.dss-inner{max-width:1040px;margin:0 auto}.dss-controls{padding:20px;border:1px solid var(--dsw-alias-border-l1);border-radius:16px;background:var(--dsw-alias-bg-layer-1)}
+    .dss-page input,.dss-page select{font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:9px 11px;min-width:0;min-height:38px;max-width:100%}.dss-page input::placeholder{color:var(--dsw-alias-label-secondary)}.dss-page button{font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);padding:8px 12px;line-height:1.5;transition:background .15s,border-color .15s}.dss-page button:hover{background:var(--dsw-alias-bg-layer-2)}.dss-page button:disabled{opacity:.5;cursor:default}.dss-page button:focus-visible,.dss-page input:focus-visible,.dss-page select:focus-visible,.dss-page summary:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:3px}
+    .dss-form{display:flex;gap:10px;margin:0 0 18px;align-items:stretch}.dss-searchbox{display:flex;align-items:center;flex:1;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:11px;background:var(--dsw-alias-bg-base);padding:4px 7px 4px 13px;gap:6px}.dss-searchbox>svg{flex-shrink:0;color:var(--dsw-alias-label-secondary)}.dss-page .dss-query{flex:1;width:100%;min-width:50px;font-size:15px;border:0;background:transparent;padding:10px 6px;box-shadow:none}.dss-searchbox:focus-within{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dss-page .dss-query:focus-visible{outline:none}.dss-modes{display:flex;gap:2px;flex-shrink:0}.dss-page .dss-mode{font-family:monospace;font-size:13px;min-width:29px;min-height:29px;padding:3px 4px;border-radius:6px;border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary)}.dss-page .dss-mode[aria-pressed="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2)}.dss-mode-word{text-decoration:underline;text-underline-offset:3px}
+    .dss-page .dss-primary{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);font-weight:600;background:var(--dsw-alias-bg-layer-2)}.dss-page .dss-submit{padding:10px 20px;border-radius:11px}.dss-page .dss-icon-button{width:32px;height:32px;padding:0;flex-shrink:0;border-color:transparent;background:transparent;font-size:21px;color:var(--dsw-alias-label-secondary)}.dss-page .dss-clear{font-size:18px;width:26px;height:28px}.dss-shortcut{white-space:nowrap;font-family:inherit;font-size:11px;border:1px solid var(--dsw-alias-border-l2);border-bottom-width:2px;border-radius:6px;padding:3px 7px;color:var(--dsw-alias-label-secondary)}
+    .dss-filter-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:14px}.dss-field{display:flex;flex-direction:column;gap:6px;min-width:0}.dss-field>label,.dss-field-label{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--dsw-alias-label-secondary)}.dss-field select{width:100%}.dss-session-field{grid-column:2 / 4}.dss-session-controls{display:grid;grid-template-columns:minmax(90px,.65fr) minmax(0,1fr);gap:8px}.dss-session-controls input,.dss-session-controls select{width:100%}.dss-match-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}.dss-match-row>label{font-size:12px;color:var(--dsw-alias-label-secondary)}.dss-match-row select{padding:5px 10px;min-height:32px}
+    .dss-options{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;padding-top:16px;margin-top:16px;border-top:1px solid var(--dsw-alias-border-l1)}.dss-check{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;line-height:1.5}.dss-check input{width:15px;height:15px;min-height:0;padding:0;margin:0;accent-color:var(--dsw-alias-brand-primary)}.dss-page .dss-refresh{margin-left:auto;padding:4px 6px;font-size:12px;border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary)}
+    .dss-tips{margin-top:13px;font-size:12px;color:var(--dsw-alias-label-secondary)}.dss-tips summary{cursor:pointer;display:list-item;width:fit-content;max-width:100%;padding:3px 0;user-select:none}.dss-tips[open] summary{margin-bottom:10px;color:var(--dsw-alias-label-primary)}.dss-tip-body{display:grid;gap:8px;padding:12px 14px;background:var(--dsw-alias-bg-base);border-radius:9px;line-height:1.7}.dss-tip-body strong{font-weight:600;color:var(--dsw-alias-label-primary)}
+    .dss-divider{border:0;border-top:1px solid var(--dsw-alias-border-l1);margin:26px 0 20px;width:100%}.dss-results-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}.dss-results-title{font-size:14px;font-weight:600;margin:0}.dss-display-options{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.dss-page .dss-order{font-size:12px;min-height:33px;padding:5px 9px;background:transparent}.dss-views{display:inline-flex;gap:2px;padding:3px;background:var(--dsw-alias-bg-layer-2);border-radius:8px}.dss-page .dss-view{font-size:12px;border-color:transparent;padding:3px 10px;background:transparent;border-radius:5px;color:var(--dsw-alias-label-secondary)}.dss-page .dss-view[aria-pressed="true"]{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l1);font-weight:600}
+    .dss-note{margin:0 0 16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.dss-result-count{color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums}.dss-message{padding:48px 22px;text-align:center;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);line-height:1.8;color:var(--dsw-alias-label-secondary);font-size:13px}.dss-message>svg{display:block;margin:0 auto 16px;padding:12px;box-sizing:content-box;border-radius:16px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}.dss-message h3{font-size:16px;font-weight:600;color:var(--dsw-alias-label-primary);margin:0 0 7px}.dss-page .dss-fuzzy-notice{padding:12px 15px;margin:0 0 16px;border-left:3px solid var(--dsw-alias-brand-primary);border-radius:0 8px 8px 0;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.65}.dss-error{color:var(--dsw-alias-state-error-primary);padding:14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;margin:14px 0;font-size:13px;overflow-wrap:anywhere}
+    .dss-hit{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);border-radius:13px;margin-bottom:12px;padding:18px 20px;transition:border-color .15s}.dss-hit:hover{border-color:var(--dsw-alias-border-l2)}.dss-hit h2{font-size:15px;line-height:1.5;margin:0;font-weight:600;overflow-wrap:anywhere}.dss-hit-heading{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dss-meta{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:8px 0 12px;font-size:11px}.dss-event-type{font-weight:500;color:var(--dsw-alias-label-primary)}.dss-id{font-family:monospace;overflow-wrap:anywhere;font-size:10px}.dss-meta .dss-id{margin-left:auto}.dss-badge{display:inline-flex;gap:4px;align-items:center;min-width:0;max-width:100%;font-size:10px;line-height:1.7;font-weight:500;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:5px;padding:1px 6px;vertical-align:middle;overflow-wrap:anywhere}.dss-badge svg{flex-shrink:0}.dss-workspace-badge{max-width:100%}
+    .dss-snippet{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:13px;line-height:1.85;margin:0 0 14px;padding:12px 14px;background:var(--dsw-alias-bg-base);border-radius:8px;max-height:260px;overflow:auto}.dss-snippet mark{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary);font-weight:650;border-radius:3px;text-decoration:underline;text-decoration-color:var(--dsw-alias-brand-primary);text-underline-offset:3px}.dss-actions{display:flex;gap:12px;flex-wrap:wrap}.dss-page .dss-actions button{padding:3px 0;font-size:12px;border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary)}.dss-page .dss-actions .dss-primary{color:var(--dsw-alias-brand-primary);font-weight:500}.dss-page .dss-actions button:hover{color:var(--dsw-alias-brand-primary);text-decoration:underline}.dss-page .dss-more{display:flex;margin:22px auto;padding:9px 20px;border-radius:9px}
+    .dss-group{border:1px solid var(--dsw-alias-border-l1);border-radius:13px;margin:0 0 12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dss-group h2{font-size:14px;margin:0}.dss-page .dss-group-toggle{display:flex;align-items:center;text-align:left;gap:11px;width:100%;border:0;border-radius:0;padding:17px 20px 10px;background:transparent}.dss-group-title{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}.dss-chevron{flex-shrink:0;color:var(--dsw-alias-label-secondary);transition:transform .15s}.dss-group-toggle[aria-expanded="true"] .dss-chevron{transform:rotate(90deg)}.dss-group-count{font-size:11px;font-weight:500;color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2);border-radius:6px;padding:3px 8px;text-align:right}.dss-group-meta{padding:0 20px 15px 45px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px}.dss-group-body{margin:0 18px 18px 26px;padding-left:14px;border-left:2px solid var(--dsw-alias-border-l2)}.dss-group-body .dss-hit{background:var(--dsw-alias-bg-base);padding:12px 14px}.dss-group-body .dss-snippet{background:var(--dsw-alias-bg-layer-1)}.dss-group-body .dss-meta{margin-top:0}.dss-group-body .dss-message{padding:18px}.dss-group-progress{padding:8px 0;font-size:11px}.dss-group .dss-more{margin:12px auto}.dss-zero{display:inline-block;width:2px;min-height:1em;vertical-align:text-bottom;background:var(--dsw-alias-brand-primary)}
+    @container(max-width:720px){.dss-head{padding:18px 20px}.dss-body{padding:20px}.dss-controls{padding:16px}.dss-filter-grid{grid-template-columns:1fr 1fr}.dss-session-field{grid-column:1 / -1}.dss-field:first-child{grid-column:1 / -1}.dss-shortcut{display:none}.dss-page .dss-refresh{margin-left:0}}
+    @container(max-width:480px){.dss-head{padding:16px}.dss-head .dss-muted{font-size:11px}.dss-emblem{width:34px;height:34px;border-radius:10px}.dss-brand{gap:10px}.dss-page h1{font-size:18px}.dss-body{padding:16px 12px 28px}.dss-form{flex-wrap:wrap;gap:8px}.dss-searchbox{flex-basis:100%}.dss-page .dss-submit{width:100%;padding:8px}.dss-session-controls{grid-template-columns:1fr}.dss-options{align-items:flex-start;gap:12px;flex-direction:column}.dss-hit{padding:14px}.dss-meta .dss-id{margin-left:0}.dss-results-toolbar{align-items:flex-start}.dss-group-toggle .dss-group-count{max-width:105px}.dss-group-body{margin-left:12px;padding-left:10px}.dss-group-meta{padding-left:20px}}
+    @media(prefers-reduced-motion:reduce){.dss-page *{transition:none!important}}
     `;
     function Icon({size = 20}) {
       return h('svg', {width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, 'aria-hidden': true},
         h('circle', {cx: 10.5, cy: 10.5, r: 6.8}), h('path', {d: 'm16 16 5 5'}));
+    }
+    function Glyph({kind, size = 15}) {
+      const paths = {refresh: 'M20 7v5h-5 M4 17v-5h5 M6.1 7a7 7 0 0 1 11.5-2L20 8 M4 16l2.4 3A7 7 0 0 0 18 17', arrow: 'M5 12h14 M13 6l6 6-6 6', timeline: 'M8 5h12 M8 12h12 M8 19h12 M3 5h.01 M3 12h.01 M3 19h.01', folder: 'M3 7h6l2-3h5l2 3h3v13H3z', back: 'M19 12H5 M11 6l-6 6 6 6'};
+      return h('svg', {width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true}, h('path', {d: paths[kind] || paths.arrow}));
     }
     function BranchIcon() {
       return h('svg', {width: 12, height: 12, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, 'aria-hidden': true},
@@ -214,22 +215,28 @@ window.__ModuleLoader__.load({
         }
         function WorkspaceLabel({hit}) {
           const name = hit.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : hit.workspaceTitle || hit.workspacePath || hit.workspaceId || t('ungroupedWorkspace');
-          return h('span', {className: 'dss-badge', title: hit.workspacePath || name}, `${t('workspace')}: ${name}`);
+          return h('span', {className: 'dss-badge dss-workspace-badge', title: `${t('workspace')}: ${hit.workspacePath || name}`}, h(Glyph, {kind: 'folder', size: 11}), name);
         }
         function Badges({hit}) {
           return h(React.Fragment, null,
             hit.subagent && h('span', {className: 'dss-badge'}, h(BranchIcon), t('subagent')),
             hit.archived && h('span', {className: 'dss-badge'}, t('archived')));
         }
-        function ResultCard({hit, within, grouped = false}) {
+        function EmptyState({empty = false, pending = false}) {
+          return h('div', {className: 'dss-message'}, h(Icon, {size: 25}),
+            h('h3', null, t(pending ? 'pendingTitle' : empty ? 'emptyTitle' : 'readyTitle')),
+            h('p', null, t(pending ? 'pending' : empty ? 'empty' : 'start')));
+        }
+        function ResultCard({hit, within, grouped = false, showWorkspace = false, fallbackTitle}) {
           return h('article', {className: 'dss-hit'},
-            !grouped && h('div', {className: 'dss-hit-heading'}, h('h2', null, hit.title || t('untitled')), h(Badges, {hit})),
-            h('div', {className: 'dss-meta dss-muted'}, h('span', null, hit.type), h('span', null, `${t('event')} #${hit.seq}`),
+            !grouped && h('div', {className: 'dss-hit-heading'}, h('h2', null, hit.title || fallbackTitle || t('untitled')),
+              showWorkspace && h(WorkspaceLabel, {hit}), h(Badges, {hit})),
+            h('div', {className: 'dss-meta dss-muted'}, h('span', {className: 'dss-event-type'}, hit.type), h('span', null, `${t('event')} #${hit.seq}`),
               hit.time !== undefined && h('time', {dateTime: new Date(hit.time).toISOString()}, new Date(hit.time).toLocaleString()),
-              !grouped && h('span', {className: 'dss-id'}, hit.sessionId)),
+              !grouped && h('span', {className: 'dss-id', title: hit.sessionId}, shortId(hit.sessionId))),
             h('pre', {className: 'dss-snippet'}, h(Highlight, {text: hit.snippet, ranges: hit.ranges})),
             h('div', {className: 'dss-actions'},
-              h('button', {type: 'button', disabled: hit.archived, title: hit.archived ? t('archivedHint') : t('open'), onClick: () => ctx.uiWorkspace.openSession(hit.sessionId)}, t('open')),
+              h('button', {type: 'button', disabled: hit.archived, title: hit.archived ? t('archivedHint') : t('open'), onClick: () => ctx.uiWorkspace.openSession(hit.sessionId)}, t('open'), h(Glyph, {kind: 'arrow', size: 13})),
               within && h('button', {type: 'button', className: 'dss-primary', onClick: () => within(hit.sessionId)}, t('within'))));
         }
         function SessionGroup({group, request, enabled, revision, within}) {
@@ -243,7 +250,7 @@ window.__ModuleLoader__.load({
               h('span', {className: 'dss-group-title'}, group.title || t('untitled')),
               h('span', {className: 'dss-group-count'}, `${group.count} · ${t('matches')}`))),
             h('div', {className: 'dss-group-meta dss-muted'}, !request.workspaceId && h(WorkspaceLabel, {hit: group}), h(Badges, {hit: group}),
-              h('span', {className: 'dss-id'}, group.sessionId),
+              h('span', {className: 'dss-id', title: group.sessionId}, shortId(group.sessionId)),
               group.time !== undefined && h('time', {dateTime: new Date(group.time).toISOString()}, new Date(group.time).toLocaleString())),
             h('div', {id: bodyId, hidden: !expanded, className: 'dss-group-body', 'aria-busy': result.busy},
               result.error && h('div', {className: 'dss-error', role: 'alert'}, result.error, ' ', h('button', {type: 'button', onClick: result.refresh}, t('retry'))),
@@ -258,12 +265,12 @@ window.__ModuleLoader__.load({
           const result = usePaged({...request, action: 'groups'}, enabled && Boolean(request.query.trim()), revision);
           const key = JSON.stringify([request, revision]);
           return h('div', {hidden: !enabled},
-            h('div', {className: 'dss-note dss-muted'}, h('span', null, t('treeHint')),
-              result.page && h('span', null, `${result.page.items.length} / ${result.page.total} ${t('sessions')} · ${result.page.totalMatches} ${t('matches')}`)),
+            h('div', {className: 'dss-note dss-muted'}, h('span', {title: t('treeHint')}, t('bySession')),
+              result.page && h('span', {className: 'dss-result-count'}, `${result.page.items.length} / ${result.page.total} ${t('sessions')} · ${result.page.totalMatches} ${t('matches')}`)),
             result.error && h('div', {className: 'dss-error', role: 'alert'}, result.error, ' ', h('button', {type: 'button', onClick: result.refresh}, t('retry'))),
             result.page?.warnings?.length > 0 && h('p', {className: 'dss-error', role: 'status'}, `${t('partial')} (${result.page.warnings.length})`),
             h('div', {'aria-live': 'polite', 'aria-busy': result.busy},
-              !request.query.trim() ? h('div', {className: 'dss-message'}, h(Icon, {size: 28}), h('p', null, t('start'))) : result.busy && !result.page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : result.page?.items.length === 0 ? h('div', {className: 'dss-message'}, t('empty')) : null,
+              !request.query.trim() ? h(EmptyState) : result.busy && !result.page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : result.page?.items.length === 0 ? h(EmptyState, {empty: true}) : null,
               h(FuzzyNotice, result),
               result.page?.items.map(group => h(SessionGroup, {key: `${key}:${group.sessionId}`, group, request, enabled, revision, within})),
               result.page?.nextCursor && h('button', {type: 'button', className: 'dss-more', disabled: result.busy, onClick: result.more}, result.busy ? t('loading') : t('moreSessions'))));
@@ -343,72 +350,67 @@ window.__ModuleLoader__.load({
           return h('section', {className: 'dss-page', 'aria-label': t('title'), onKeyDown: e => {
             if (e.key === 'Escape' && e.target.tagName !== 'SELECT') {e.preventDefault(); ctx.layout.selectPanel(null);}
           }}, h('style', null, css),
-            h('header', {className: 'dss-head'}, h('div', null, h('h1', null, t('title')), h('p', {className: 'dss-muted'}, t('intro'))),
-              h('div', null, h('span', {className: 'dss-shortcut dss-muted'}, t('shortcut')), h('button', {type: 'button', title: t('close'), 'aria-label': t('close'), onClick: () => ctx.layout.selectPanel(null)}, '×'))),
+            h('header', {className: 'dss-head'},
+              h('div', {className: 'dss-brand'}, h('span', {className: 'dss-emblem'}, h(Icon, {size: 22})),
+                h('div', null, h('h1', null, t('title')), h('p', {className: 'dss-muted'}, t('intro')))),
+              h('nav', {className: 'dss-head-actions', 'aria-label': t('navigation')}, h('kbd', {className: 'dss-shortcut'}, t('shortcut')),
+                h('button', {className: 'dss-icon-button', type: 'button', title: t('close'), 'aria-label': t('close'), onClick: () => ctx.layout.selectPanel(null)}, h(Glyph, {kind: 'back', size: 19})))),
             h('div', {className: 'dss-body'}, h('div', {className: 'dss-inner'},
-              h('form', {className: 'dss-form', onSubmit: e => {e.preventDefault(); setVersion(v => v + 1);}},
-                h('div', {className: 'dss-searchbox'},
-                  h('input', {ref: input, className: 'dss-query', type: 'search', value: query, maxLength: 1024, placeholder: t('placeholder'), 'aria-label': t('placeholder'), onChange: e => setText(e.target.value)}),
-                  h('div', {className: 'dss-modes', role: 'group', 'aria-label': t('searchModes')},
-                    ...[
-                      ['matchCase', 'Aa', matchCase, setMatchCase],
-                      ['wholeWord', 'ab', wholeWord, setWholeWord],
-                      ['useRegex', '.*', useRegex, setRegexMode]
-                    ].map(([name, label, enabled, setEnabled]) => h('button', {key: name, type: 'button', className: `dss-mode${name === 'wholeWord' ? ' dss-mode-word' : ''}`, title: t(name), 'aria-label': t(name), 'aria-pressed': enabled, onClick: () => {stored[name] = !enabled; setEnabled(!enabled);}}, label)))),
-                h('button', {className: 'dss-primary', disabled: !query.trim(), type: 'submit'}, t('search')),
-                query && h('button', {type: 'button', onClick: () => {setText(''); input.current?.focus();}}, t('clear'))),
-              h('div', {className: 'dss-options'}, h('label', {htmlFor: 'dss-fuzzy'}, t('fuzzy')),
-                h('select', {id: 'dss-fuzzy', value: fuzzy, 'aria-describedby': 'dss-fuzzy-hint', onChange: e => setFuzzyMode(e.target.value)},
-                  ...[['off', 'fuzzyOff'], ['typo', 'fuzzyTypo'], ['subsequence', 'fuzzySubsequence']].map(([value, label]) => h('option', {key: value, value}, t(label))))),
-              h('p', {id: 'dss-fuzzy-hint', className: 'dss-muted'}, t(fuzzy === 'typo' ? 'fuzzyTypoHint' : fuzzy === 'subsequence' ? 'fuzzySubsequenceHint' : 'fuzzyOffHint')),
-              h('div', {className: 'dss-options'}, h('label', {htmlFor: 'dss-workspace'}, t('workspace')),
-                h('select', {id: 'dss-workspace', value: workspaceId, title: t('workspaceHint'), onChange: e => setWorkspace(e.target.value)},
-                  h('option', {value: ''}, t('allWorkspaces')),
-                  workspaceId && !workspaces.some(item => item.workspaceId === workspaceId) && h('option', {value: workspaceId}, workspaceId),
-                  ...workspaces.map(item => h('option', {key: item.workspaceId, value: item.workspaceId, title: item.path || workspaceName(item)}, workspaceName(item))))),
-              h('p', {className: 'dss-muted'}, t('workspaceHint')),
-              h('div', {className: 'dss-scope'}, h('label', {htmlFor: 'dss-scope'}, t('scope')),
-                h('input', {type: 'search', value: filter, placeholder: t('sessionFilter'), 'aria-label': t('sessionFilter'), onChange: e => setFilter(e.target.value)}),
-                h('select', {id: 'dss-scope', value: scope, disabled: catalogState !== 'ready', onChange: e => setTarget(e.target.value)},
-                  h('option', {value: ''}, t('all')),
-                  scope && !selected && h('option', {value: scope}, `${t('unavailable')} · ${scope}`),
-                  ...options,
-                   null)),
-              h('p', {className: 'dss-muted'}, t('pickerHint')),
-              h('div', {className: 'dss-options'}, h('label', {className: 'dss-check'},
-                h('input', {type: 'checkbox', checked: includeSubagents, onChange: e => setSubagents(e.target.checked)}), t('includeSubagents')),
-                h('label', {className: 'dss-check'}, h('input', {type: 'checkbox', checked: includeArchived, onChange: e => setArchives(e.target.checked)}), t('includeArchived')),
-                h('label', {className: 'dss-check', title: t('finalHint')}, h('input', {type: 'checkbox', checked: finalOnly, onChange: e => {stored.finalOnly = e.target.checked; setFinalOnly(e.target.checked);}}), t('finalOnly')),
-                h('button', {type: 'button', onClick: () => {setCatalogVersion(v => v + 1); setVersion(v => v + 1);}}, t('refresh'))),
-              h('p', {className: 'dss-muted'}, t('finalHint')),
-              h('div', {className: 'dss-options'}, h('label', {htmlFor: 'dss-order'}, t('sort')),
-                h('select', {id: 'dss-order', value: order, onChange: e => {stored.order = e.target.value; setOrder(e.target.value);}},
-                  h('option', {value: 'newest'}, t('newest')), h('option', {value: 'oldest'}, t('oldest'))),
-                !scope && h('div', {className: 'dss-views', role: 'group', 'aria-label': t('view')},
-                  ...[['timeline', 'timeline'], ['session', 'bySession']].map(([value, label]) => h('button', {key: value, type: 'button', className: 'dss-view', 'aria-pressed': view === value, onClick: () => {stored.view = value; setView(value);}}, t(label))))),
-              h('p', {className: 'dss-muted'}, t('matching')),
-              useRegex && h('p', {className: 'dss-muted'}, t('regexHint')),
-              catalogState === 'loading' && h('p', {className: 'dss-muted', role: 'status'}, t('loadingSessions')),
-              catalogState === 'error' && h('div', {className: 'dss-error', role: 'alert'}, t('catalogError'), ' ', h('button', {type: 'button', onClick: () => setCatalogVersion(v => v + 1)}, t('retry'))),
+              h('section', {className: 'dss-controls', 'aria-label': t('filters')},
+                h('form', {className: 'dss-form', onSubmit: e => {e.preventDefault(); setVersion(v => v + 1);}},
+                  h('div', {className: 'dss-searchbox'}, h(Icon, {size: 18}),
+                    h('input', {ref: input, className: 'dss-query', type: 'search', value: query, maxLength: 1024, placeholder: t('placeholder'), 'aria-label': t('placeholder'), onChange: e => setText(e.target.value)}),
+                    query && h('button', {className: 'dss-icon-button dss-clear', type: 'button', title: t('clear'), 'aria-label': t('clear'), onClick: () => {setText(''); input.current?.focus();}}, '×'),
+                    h('div', {className: 'dss-modes', role: 'group', 'aria-label': t('searchModes')},
+                      ...[
+                        ['matchCase', 'Aa', matchCase, setMatchCase],
+                        ['wholeWord', 'ab', wholeWord, setWholeWord],
+                        ['useRegex', '.*', useRegex, setRegexMode]
+                      ].map(([name, label, enabled, setEnabled]) => h('button', {key: name, type: 'button', className: `dss-mode${name === 'wholeWord' ? ' dss-mode-word' : ''}`, title: t(name), 'aria-label': t(name), 'aria-pressed': enabled, onClick: () => {stored[name] = !enabled; setEnabled(!enabled);}}, label)))),
+                  h('button', {className: 'dss-primary dss-submit', disabled: !query.trim(), type: 'submit'}, t('search'), h(Glyph, {kind: 'arrow'}))),
+                h('div', {className: 'dss-filter-grid'},
+                  h('div', {className: 'dss-field'}, h('label', {htmlFor: 'dss-workspace'}, t('workspace')),
+                    h('select', {id: 'dss-workspace', value: workspaceId, title: t('workspaceHint'), onChange: e => setWorkspace(e.target.value)},
+                      h('option', {value: ''}, t('allWorkspaces')),
+                      workspaceId && !workspaces.some(item => item.workspaceId === workspaceId) && h('option', {value: workspaceId}, workspaceId),
+                      ...workspaces.map(item => h('option', {key: item.workspaceId, value: item.workspaceId, title: item.path || workspaceName(item)}, workspaceName(item))))),
+                  h('div', {className: 'dss-field dss-session-field'}, h('label', {htmlFor: 'dss-scope'}, t('session')),
+                    h('div', {className: 'dss-session-controls'},
+                      h('input', {type: 'search', value: filter, placeholder: t('sessionFilter'), 'aria-label': t('filterNames'), onChange: e => setFilter(e.target.value)}),
+                      h('select', {id: 'dss-scope', value: scope, title: t('pickerHint'), disabled: catalogState !== 'ready', onChange: e => setTarget(e.target.value)},
+                        h('option', {value: ''}, t('all')), scope && !selected && h('option', {value: scope}, `${t('unavailable')} · ${scope}`), ...options)))),
+                h('div', {className: 'dss-match-row'}, h('label', {htmlFor: 'dss-fuzzy'}, t('fuzzy')),
+                  h('select', {id: 'dss-fuzzy', value: fuzzy, 'aria-describedby': 'dss-fuzzy-hint', onChange: e => setFuzzyMode(e.target.value)},
+                    ...[['off', 'fuzzyOff'], ['typo', 'fuzzyTypo'], ['subsequence', 'fuzzySubsequence']].map(([value, label]) => h('option', {key: value, value}, t(label)))),
+                  fuzzy !== 'off' && h('span', {className: 'dss-muted'}, t(fuzzy === 'typo' ? 'typoExample' : 'subsequenceExample'))),
+                h('div', {className: 'dss-options'},
+                  h('label', {className: 'dss-check', title: t('finalHint')}, h('input', {type: 'checkbox', checked: finalOnly, onChange: e => {stored.finalOnly = e.target.checked; setFinalOnly(e.target.checked);}}), t('finalOnly')),
+                  h('label', {className: 'dss-check'}, h('input', {type: 'checkbox', checked: includeSubagents, onChange: e => setSubagents(e.target.checked)}), t('includeSubagents')),
+                  h('label', {className: 'dss-check'}, h('input', {type: 'checkbox', checked: includeArchived, onChange: e => setArchives(e.target.checked)}), t('includeArchived')),
+                  h('button', {className: 'dss-refresh', type: 'button', onClick: () => {setCatalogVersion(v => v + 1); setVersion(v => v + 1);}}, h(Glyph, {kind: 'refresh'}), t('refresh'))),
+                h('details', {className: 'dss-tips'}, h('summary', null, t('tips')),
+                  h('div', {className: 'dss-tip-body'},
+                    h('p', {id: 'dss-fuzzy-hint'}, h('strong', null, `${t('fuzzy')}. `), t(fuzzy === 'typo' ? 'fuzzyTypoHint' : fuzzy === 'subsequence' ? 'fuzzySubsequenceHint' : 'fuzzyOffHint')),
+                    h('p', null, t('workspaceHint')), h('p', null, t('pickerHint')), h('p', null, t('finalHint')), h('p', null, t('matching')))),
+                useRegex && h('p', {className: 'dss-muted'}, t('regexHint')),
+                catalogState === 'loading' && h('p', {className: 'dss-muted', role: 'status'}, t('loadingSessions')),
+                catalogState === 'error' && h('div', {className: 'dss-error', role: 'alert'}, t('catalogError'), ' ', h('button', {type: 'button', onClick: () => setCatalogVersion(v => v + 1)}, t('retry')))),
               h('hr', {className: 'dss-divider'}),
+              h('div', {className: 'dss-results-toolbar'}, h('h2', {className: 'dss-results-title'}, t('results')),
+                h('div', {className: 'dss-display-options'},
+                  !scope && h('div', {className: 'dss-views', role: 'group', 'aria-label': t('view')},
+                    ...[['timeline', 'timeline'], ['session', 'bySession']].map(([value, label]) => h('button', {key: value, type: 'button', className: 'dss-view', 'aria-pressed': view === value, onClick: () => {stored.view = value; setView(value);}}, h(Glyph, {kind: value === 'timeline' ? 'timeline' : 'folder', size: 13}), t(label)))),
+                  h('select', {id: 'dss-order', className: 'dss-order', value: order, 'aria-label': t('sort'), onChange: e => {stored.order = e.target.value; setOrder(e.target.value);}},
+                    h('option', {value: 'newest'}, t('newest')), h('option', {value: 'oldest'}, t('oldest'))))),
               h(SessionGroups, {key: scope, request, enabled: tree, revision: version, within}),
                h('div', {hidden: tree},
-               h('div', {className: 'dss-note dss-muted'}, h('span', null, scope ? t('events') : t('grouped')), page && h('span', null, `${page.items.length}${Number.isInteger(page.total) ? ` / ${page.total}` : page.nextCursor ? '+' : ''} · ${t('results')}`)),
+               h('div', {className: 'dss-note dss-muted'}, h('span', {title: scope ? t('events') : t('grouped')}, selected?.title || (scope ? t('unavailable') : t('resultsHint'))), page && h('span', {className: 'dss-result-count'}, `${page.items.length}${Number.isInteger(page.total) ? ` / ${page.total}` : page.nextCursor ? '+' : ''} · ${t('results')}`)),
               error && h('div', {className: 'dss-error', role: 'alert'}, h('p', null, error), h('button', {type: 'button', onClick: () => setVersion(v => v + 1)}, t('retry'))),
               page?.warnings?.length > 0 && h('div', {className: 'dss-error', role: 'status'}, `${t('partial')} (${page.warnings.length})`),
               h('div', {'aria-live': 'polite', 'aria-busy': busy},
-                busy && !page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : !query.trim() ? h('div', {className: 'dss-message'}, h(Icon, {size: 28}), h('p', null, t('start'))) : page?.items.length === 0 ? h('div', {className: 'dss-message'}, t(page.nextCursor ? 'pending' : 'empty')) : null,
+                busy && !page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : !query.trim() ? h(EmptyState) : page?.items.length === 0 ? h(EmptyState, {empty: true, pending: Boolean(page.nextCursor)}) : null,
                 h(FuzzyNotice, {page, busy, error}),
-                page?.items.map(hit => h('article', {className: 'dss-hit', key: `${hit.sessionId}:${hit.seq}`},
-                  h('div', {className: 'dss-hit-heading'}, h('h2', null, hit.title || selected?.title || t('untitled')),
-                    !workspaceId && h(WorkspaceLabel, {hit}),
-                    hit.subagent && h('span', {className: 'dss-badge'}, h(BranchIcon), t('subagent')),
-                    hit.archived && h('span', {className: 'dss-badge'}, t('archived'))),
-                  h('div', {className: 'dss-meta dss-muted'}, h('span', null, hit.type), h('span', null, `${t('event')} #${hit.seq}`), hit.time !== undefined && h('time', {dateTime: new Date(hit.time).toISOString()}, new Date(hit.time).toLocaleString()), h('span', {className: 'dss-id'}, hit.sessionId)),
-                  h('pre', {className: 'dss-snippet'}, h(Highlight, {text: hit.snippet, ranges: hit.ranges})),
-                  h('div', {className: 'dss-actions'},
-                    h('button', {type: 'button', disabled: hit.archived, title: hit.archived ? t('archivedHint') : t('open'), onClick: () => ctx.uiWorkspace.openSession(hit.sessionId)}, t('open')),
-                    !scope && h('button', {type: 'button', className: 'dss-primary', onClick: () => {setTarget(hit.sessionId); setFilter('');}}, t('within'))))),
+                page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, fallbackTitle: selected?.title, showWorkspace: !workspaceId, within: !scope ? within : undefined})),
                 page?.nextCursor && h('button', {className: 'dss-more', type: 'button', disabled: busy, onClick: more}, busy ? t('loading') : t('more'))))
             )));
         }

@@ -4,7 +4,7 @@ English | [简体中文](<README.zh-CN.md>)
 
 Find text across your DeepSeek Harness (DSH) conversation history—across all sessions or within one conversation. Open the search panel from the sidebar or with **Ctrl+F / ⌘F**.
 
-An independent community plugin, not an official DSH package. **Package version: 1.2.1.**
+An independent community plugin, not an official DSH package. **Package version: 1.2.2.**
 
 ## Features
 
@@ -16,7 +16,8 @@ An independent community plugin, not an official DSH package. **Package version:
 - **Newest first / Oldest first**, ordered by matching-message time rather than unrelated session activity.
 - Optional **subagent conversations** and **archived sessions**, clearly labeled.
 - **Final model replies only** by default; optionally search stored inputs, intermediate replies, tool calls/results and reasoning too.
-- Highlighted snippets, pagination, conversation-opening buttons, English/Chinese UI and DSH theme support.
+- A compact, theme-aware search card, grouped workspace/session filters, collapsible search tips, and result-local view/order controls.
+- Highlighted snippets, pagination, conversation-opening buttons, English/Chinese UI and DSH theme support. Narrow panels stack controls automatically; reduced-motion preferences are respected.
 - A read-only **`search_session_text`** agent tool backed by the same engine as the UI.
 - Local operation without a separate search service, FTS index, third-party dependencies or build step.
 
@@ -129,4 +130,4 @@ Runtime files: [index.js](<index.js>) (Host/HTTP/tool), [search.js](<search.js>)
 [MIT](<LICENSE>) © 2026 Zimin Li. The included original SVG icon is covered by the same license.
 
 
-[Changelog / 更新日志](https://github.com/Ziminli/dsh-session-search/blob/v1.2.1/CHANGELOG.md)
+[Changelog / 更新日志](https://github.com/Ziminli/dsh-session-search/blob/v1.2.2/CHANGELOG.md)
