@@ -283,7 +283,12 @@ window.__ModuleLoader__.load({
           const entries = [...options, ...values.filter(value => !known.has(value)).map(value => ({id: value, label: value}))];
           const visible = entries.filter(option => `${option.label} ${option.id}`.toLowerCase().includes(filter.toLowerCase()));
           const selected = new Set(values);
-          return h('div', {className: 'dss-picker', ref: root, onBlur: event => {if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);}, onKeyDown: event => {
+          return h('div', {className: 'dss-picker', ref: root, onBlur: event => {
+            // Row text/padding is not focusable: allow the label's native click to
+            // reach its checkbox before dismissing. Outside pointers and Escape
+            // already close the picker; only definite outside focus closes here.
+            if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+          }, onKeyDown: event => {
             if (event.key === 'Escape' && open) {event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus();}
           }}, h('button', {ref: trigger, type: 'button', className: 'dss-picker-trigger', disabled, title: hint, 'aria-label': label, 'aria-expanded': open, 'aria-controls': id, 'aria-haspopup': 'dialog', onClick: () => setOpen(value => !value)},
             values.length ? `${values.length} ${t('selectedCount')}` : allLabel, h('span', {'aria-hidden': true}, '▾')),

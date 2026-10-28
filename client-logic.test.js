@@ -15,6 +15,38 @@ const navigationEnd = source.indexOf('        // Keep pages mounted', navigation
 assert.ok(navigationStart > 0 && navigationEnd > navigationStart);
 const makeNavigation = Function('ctx', 'setHighlightIntent', 'getIntent', `${source.slice(navigationStart, navigationEnd).replace('const previous = highlightIntent;', 'const previous = getIntent();')}; return openHighlightedConversation;`);
 
+// Exercise the actual focus-dismiss handler, without React/DOM emulation.
+const pickerBlurStart = source.indexOf('onBlur: event => {', source.indexOf('        function MultiPicker('));
+const pickerBlurEnd = source.indexOf('}, onKeyDown:', pickerBlurStart);
+assert.ok(pickerBlurStart > 0 && pickerBlurEnd > pickerBlurStart);
+const pickerBlur = Function('event', 'setOpen', source.slice(pickerBlurStart + 'onBlur: event => {'.length, pickerBlurEnd));
+
+test('multiselect blur without a focus target leaves native label activation intact', () => {
+  const closed = [];
+  pickerBlur({relatedTarget: null, currentTarget: {contains: () => assert.fail('No destination to inspect')}}, value => closed.push(value));
+  assert.deepEqual(closed, [], 'Clicking nonfocusable row text/padding must not unmount the checkbox before label activation');
+});
+
+test('multiselect keeps internal focus open and closes on definite outside focus', () => {
+  for (const inside of [true, false]) {
+    const target = {};
+    const closed = [];
+    pickerBlur({relatedTarget: target, currentTarget: {contains: value => {assert.equal(value, target); return inside;}}}, value => closed.push(value));
+    assert.deepEqual(closed, inside ? [] : [false]);
+  }
+});
+
+test('both scope pickers retain native whole-row labels and one checkbox change handler', () => {
+  const picker = source.slice(source.indexOf('        function MultiPicker('), source.indexOf('        // Opaque warn fill'));
+  assert.match(picker, /visible\.map\(option => h\('label', \{key: option\.id, className: 'dss-picker-option'/);
+  assert.match(picker, /h\('input', \{type: 'checkbox', checked: selected\.has\(option\.id\), onChange:/);
+  const rows = picker.slice(picker.indexOf("h('div', {className: 'dss-picker-list'"));
+  assert.doesNotMatch(rows, /onClick:|preventDefault\(/, 'Native label activation must not be cancelled or double-toggled');
+  assert.match(picker, /document\.addEventListener\('pointerdown', outside\)/);
+  assert.match(picker, /event\.key === 'Escape' && open/);
+  assert.equal((source.match(/h\(MultiPicker, \{label: t\('(workspace|session)'\)/g) || []).length, 2);
+});
+
 test('opening a highlighted result preserves native Conversation mode and matching options', () => {
   const calls = [];
   let intent = null;

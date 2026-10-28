@@ -4,6 +4,11 @@ All package version changes must have an entry here before release. Entries are 
 
 Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
 
+## [1.3.5] - 2026-10-28
+
+### Fixed / 修复
+- Keep workspace/session multiselects open when clicking nonfocusable row text or padding, allowing native label activation to toggle the checkbox exactly once. Previously, blur from the filter could dismiss the list before selection. Direct checkbox clicks and keyboard Space retain their native behavior; outside clicks, outside focus and Escape still dismiss the picker. / 点击工作区或会话多选列表的文字、行内留白时不再因筛选框失焦提前关闭，原生 label 激活可正常且仅切换一次复选框；直接点击复选框及键盘空格操作保持不变，外部点击、明确移出焦点和 Esc 仍可关闭列表。
+
 ## [1.3.4] - 2026-10-28
 
 ### Fixed / 修复
