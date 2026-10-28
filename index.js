@@ -1,8 +1,35 @@
 import {search} from './search.js';
-export const inject = ['sessionQuery', 'sessionController', 'workspaceController', 'connection', 'webServer', 'tools'];
-export function apply(ctx) {
+import {createSettingsOperation, readSettingsBody} from './settings.js';
+export {Config} from './settings.js';
+export const inject = ['sessionQuery', 'sessionController', 'workspaceController', 'connection', 'webServer', 'tools', 'configEditor'];
+export function apply(ctx, config) {
   const operation = (input, signal) => search(ctx, input, signal);
-  ctx.effect(() => ctx.provide('localSessionSearch', {search: operation}));
+  const settings = createSettingsOperation(ctx, config);
+  ctx.effect(() => ctx.provide('localSessionSearch', {search: operation, settings}));
+  ctx.effect(() => ctx.webServer.register({kind: 'exact', path: '/api/local-session-search-settings', async handler(req, res) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const admission = ctx.connection.admit({headers: req.headers});
+    if ('rejection' in admission) {res.writeHead(admission.rejection); res.end(JSON.stringify({error: 'Authentication required'})); return;}
+    if (admission.peer.principal.kind !== 'owner') {res.writeHead(403); res.end(JSON.stringify({error: 'Owner access required'})); return;}
+    if (!['GET', 'POST'].includes(req.method)) {res.setHeader('Allow', 'GET, POST'); res.writeHead(405); res.end(JSON.stringify({error: 'GET or POST required'})); return;}
+    if (req.method === 'POST' && !/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {res.writeHead(415); res.end(JSON.stringify({error: 'JSON content type required'})); return;}
+    try {
+      const result = await settings(req.method === 'POST' ? await readSettingsBody(req) : undefined);
+      if (!res.destroyed) {res.writeHead(200); res.end(JSON.stringify(result));}
+    } catch (error) {
+      if (!res.destroyed) {res.writeHead(400); res.end(JSON.stringify({error: error instanceof Error ? error.message : String(error)}));}
+    }
+  }}));
+  ctx.effect(() => ctx.tools.register({
+    name: 'session_search_settings',
+    description: 'Read or save the profile-wide Session Search timing preference. Live searches as you type; submit waits for Enter or Search.',
+    parameters: {type: 'object', properties: {searchMode: {type: 'string', enum: ['live', 'submit'], description: 'Omit to read. Set to save this timing mode in plugin settings.'}}, additionalProperties: false},
+    output: {schema: {type: 'object'}, render: (_args, value) => [{type: 'text', text: JSON.stringify(value)}]},
+    isConcurrencySafe: input => input.searchMode === undefined,
+    async execute(input) {return settings(input.searchMode === undefined ? undefined : input);}
+  }));
   ctx.effect(() => ctx.webServer.register({kind: 'exact', path: '/api/local-session-search', async handler(req, res) {
     const admission = ctx.connection.admit({headers: req.headers});
     res.setHeader('Cache-Control', 'no-store');
@@ -28,7 +55,11 @@ export function apply(ctx) {
     parameters: {type: 'object', properties: {
       action: {type: 'string', enum: ['search', 'sessions', 'groups'], description: 'Default search: matching replies/events. groups: session rows with complete event counts (total=groups, totalMatches=events). sessions: catalog without text matching.'},
       query: {type: 'string', description: 'Required for search/groups, 1–1024 characters. Default: escaped literal substring with flexible whitespace. Regex mode: JavaScript Unicode pattern source, no /delimiters/ or trailing flags. Invalid or timed-out expressions fail the entire search.'},
-      sessionId: {type: 'string', description: 'Restrict to this conversation ID within the workspace scope; omit for all eligible sessions.'},
+      sessionId: {type: 'string', description: 'Legacy single conversation ID; cannot combine with nonempty sessionIds.'},
+      sessionIds: {type: 'array', items: {type: 'string'}, maxItems: 1000, description: 'Search any of these conversation IDs, intersected with workspace scope. Empty/omitted means all. Do not combine with sessionId.'},
+      workspaceIds: {type: 'array', items: {type: 'string'}, maxItems: 200, description: 'Search any of these workspace IDs; empty/omitted means all. Use __ungrouped__ for unregistered workspaces. Discover IDs via action sessions. Do not combine with workspaceId.'},
+      after: {type: 'integer', description: 'Inclusive message timestamp lower bound, Unix epoch milliseconds. Missing timestamps are excluded when bounded.'},
+      before: {type: 'integer', description: 'Exclusive message timestamp upper bound, Unix epoch milliseconds; must exceed after. Applies before matching/grouping, not to session activity.'},
       workspaceId: {type: 'string', description: 'Restrict to this workspace ID; omit for all workspaces. Discover IDs from action sessions → workspaces. Use __ungrouped__ for sessions without a registered workspace. A selected session must belong to this workspace.'},
       includeSubagents: {type: 'boolean', description: 'Include subagent conversations. Default false.'},
       includeArchived: {type: 'boolean', description: 'Include archived conversations. Default false.'},

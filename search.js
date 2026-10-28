@@ -11,6 +11,30 @@ function string(value, name, max = 1024) {
   if (typeof value !== 'string' || !value.trim() || value.length > max) throw new Error(`${name} must be nonempty text of at most ${max} characters`);
   return value;
 }
+function selection(input, singular, plural, max) {
+  let values = input[plural];
+  if (typeof values === 'string') {
+    try {values = JSON.parse(values);} catch {throw new Error(`${plural} must be an array or JSON array string`);}
+  }
+  if (values === undefined) values = [];
+  if (!Array.isArray(values) || values.length > max) throw new Error(`${plural} must be an array of at most ${max} IDs`);
+  values = Array.from(values, value => string(value, plural, 512));
+  if (input[singular] !== undefined) {
+    const legacy = string(input[singular], singular, 512);
+    if (values.length) throw new Error(`${singular} cannot be combined with nonempty ${plural}`);
+    values = [legacy];
+  }
+  return [...new Set(values)].sort();
+}
+const MAX_DATE_MS = 8640000000000000;
+function timestamp(value, name) {
+  if (value === undefined) return undefined;
+  if (typeof value === 'string' && /^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/iu.test(value)) value = Number(value);
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || Math.abs(value) > MAX_DATE_MS) {
+    throw new Error(`${name} must be a finite safe integer Unix epoch millisecond timestamp within the JavaScript Date range`);
+  }
+  return value;
+}
 function flag(value, name) {
   if (value === undefined || value === false || value === 'false') return false;
   if (value === true || value === 'true') return true;
@@ -286,9 +310,12 @@ export async function search(services, input, signal = new AbortController().sig
     if (Array.from(query).length > 128) throw new Error('Fuzzy query must contain at most 128 Unicode code points.');
     if ((query.match(/[\p{L}\p{N}_]+/gu) || []).length > 16) throw new Error('Fuzzy query must contain at most 16 word terms (Unicode letters, numbers, or underscore).');
   }
-  const sessionId = input.sessionId === undefined ? undefined : string(input.sessionId, 'sessionId', 512);
-  const workspaceId = input.workspaceId === undefined ? undefined : string(input.workspaceId, 'workspaceId', 512);
-  const key = digest(['v1.7', action, query, sessionId, workspaceId, options]);
+  const sessionIds = selection(input, 'sessionId', 'sessionIds', 1000);
+  const workspaceIds = selection(input, 'workspaceId', 'workspaceIds', 200);
+  const after = timestamp(input.after, 'after'), before = timestamp(input.before, 'before');
+  if (after !== undefined && before !== undefined && after >= before) throw new Error('after must be less than before');
+  const bounded = after !== undefined || before !== undefined;
+  const key = digest(['v1.8', action, query, sessionIds, workspaceIds, after, before, options]);
   let cursor;
   if (input.cursor !== undefined) {
     try {
@@ -300,13 +327,23 @@ export async function search(services, input, signal = new AbortController().sig
   // Validate even with an empty/excluded corpus, before any service reads.
   if (action !== 'sessions') matchDocuments([], spec);
   const {items: rows, workspaces} = await catalog(services, options, signal);
-  const workspace = workspaceId === undefined ? undefined : workspaces.find(item => item.workspaceId === workspaceId);
-  if (workspaceId !== undefined && !workspace) throw new Error('Workspace is unavailable. Refresh the workspace list and search again.');
-  const selected = sessionId ? rows.find(row => row.sessionId === sessionId) : undefined;
-  if (sessionId && !selected) throw new Error('Session is unavailable or excluded. Refresh the list or enable its archive/subagent scope.');
-  if (selected && workspaceId !== undefined && selected.workspaceId !== workspaceId) throw new Error('Session does not belong to the selected workspace. Choose a session in that workspace or clear the session scope.');
-  const eligible = rows.filter(row => (!sessionId || row.sessionId === sessionId) && (workspaceId === undefined || row.workspaceId === workspaceId));
-  const scope = {scope: sessionId || 'all', workspaceId: workspaceId ?? null, workspaceTitle: workspace?.title || '', workspacePath: workspace?.path || '', workspaces};
+  const workspaceSelection = new Set(workspaceIds), sessionSelection = new Set(sessionIds);
+  const byWorkspace = new Map(workspaces.map(item => [item.workspaceId, item]));
+  const bySession = new Map(rows.map(row => [row.sessionId, row]));
+  for (const id of workspaceIds) {
+    if (!byWorkspace.has(id)) throw new Error('Workspace is unavailable. Refresh the workspace list and search again.');
+  }
+  for (const id of sessionIds) {
+    const selected = bySession.get(id);
+    if (!selected) throw new Error('Session is unavailable or excluded. Refresh the list or enable its archive/subagent scope.');
+    if (workspaceIds.length && !workspaceSelection.has(selected.workspaceId)) throw new Error('Session does not belong to the selected workspace scope. Choose a session in a selected workspace or clear the session scope.');
+  }
+  const eligible = rows.filter(row => (!sessionIds.length || sessionSelection.has(row.sessionId)) && (!workspaceIds.length || workspaceSelection.has(row.workspaceId)));
+  const workspaceId = workspaceIds.length === 1 ? workspaceIds[0] : undefined;
+  const workspace = byWorkspace.get(workspaceId);
+  const scope = {scope: sessionIds.length === 1 ? sessionIds[0] : 'all', workspaceId: workspaceId ?? null,
+    workspaceTitle: workspace?.title || '', workspacePath: workspace?.path || '', workspaces,
+    sessionIds, workspaceIds, after: after ?? null, before: before ?? null};
   if (action === 'sessions') return {...scope, ...options, items: eligible};
   const items = [], warnings = [];
   let hasExactMatches = false;
@@ -316,7 +353,13 @@ export async function search(services, input, signal = new AbortController().sig
       const observation = await services.sessionQuery.observeSession(row.sessionId, {signal, projectionMode: 'none'});
       try {
         const project = content === 'final' ? finalDocuments : processDocuments;
-        const matched = matchDocuments(project(observation.events, row.sessionId), spec);
+        const projected = project(observation.events, row.sessionId);
+        // Project full turns first: cutting events can erase a turn's completion
+        // or wrongly promote an earlier assistant message into its final reply.
+        // Filter before BOTH fuzzy exact-presence scans and hit aggregation.
+        const documents = bounded ? projected.filter(doc => Number.isSafeInteger(doc.time) && Math.abs(doc.time) <= MAX_DATE_MS &&
+          (after === undefined || doc.time >= after) && (before === undefined || doc.time < before)) : projected;
+        const matched = matchDocuments(documents, spec);
         const hits = fuzzy === 'off' ? matched : matched.hits;
         if (fuzzy !== 'off' && matched.hasExactMatches) hasExactMatches = true;
         for (const hit of hits) items.push({...row, ...hit});
@@ -326,7 +369,7 @@ export async function search(services, input, signal = new AbortController().sig
       signal.throwIfAborted();
       // A pathological expression must stop ALL scopes, never silently hide
       // the affected session behind an ordinary read-failure warning.
-      if (error instanceof SearchMatchError || sessionId) throw error;
+      if (error instanceof SearchMatchError || sessionIds.length) throw error;
       warnings.push({sessionId: row.sessionId, error: error instanceof Error ? error.message : String(error)});
     }
   }

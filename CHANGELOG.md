@@ -1,8 +1,17 @@
 # Changelog / 更新日志
 
-All package version changes must have an entry here before release. Entries are newest first and describe user-visible changes; GitHub releases link back to this file. / 每次插件包版本变更都必须先在此添加条目，按新到旧排列，记录面向用户的变化；GitHub Release 链接回此文件。
+Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
 
-Versions 1.2.0–1.2.2 were installed locally during development, not published as separate GitHub releases. Their changes are included in the first public 1.2.x release, **1.2.3**. Earlier version numbers used by the private development bundle are not public-package releases. / 1.2.0–1.2.2 为开发期间的本地安装版本，未单独发布 GitHub Release；它们的改动统一包含在首个公开的 1.2.x 版本 **1.2.3** 中。更早的私有开发包版本号不属于本公开包的发布历史。
+## [1.3.0] - 2026-10-28
+
+### Added / 新增
+- Select multiple workspaces and multiple sessions, with searchable checkbox lists and explicit All choices; workspace selection restricts eligible sessions. / 工作区和会话均支持多选，提供可筛选的复选列表和明确的“全部”选项；工作区选择会限定可选会话。
+- Filter matching messages by time using Today, Last 24 hours, Last 7 days, This month or custom local calendar dates. The end date includes the whole selected day (an exclusive next-midnight API bound). Filtering precedes matching, counts and pagination. / 支持今天、最近 24 小时、最近 7 天、本月及自定义本地日期；结束日期包含所选整天（API 截止为次日零点且不包含），在匹配、计数和分页前过滤消息。
+- Save a profile-wide **Live / Enter or Search** search timing preference in the plugin's settings page, exposed through the same Host operation as the `session_search_settings` agent tool. / 可在插件设置页保存配置档级的**实时搜索 / 按 Enter 或搜索**触发方式，与 `session_search_settings` 代理工具共享同一 Host 操作。
+- Extend the search API/tool with `workspaceIds`, `sessionIds`, `after` and `before`, preserving legacy singular scope fields. / 搜索 API 和工具新增 `workspaceIds`、`sessionIds`、`after` 和 `before`，保留旧版单范围字段兼容。
+
+### Changed / 调整
+- Use theme-aware yellow match backgrounds in snippets rather than blue/brand-only highlighting. / 摘要中的匹配改用主题适配的黄色背景，而不是仅使用蓝色或品牌色。
 
 ## [1.2.3] - 2026-10-28
 
@@ -51,6 +60,10 @@ Versions 1.2.0–1.2.2 were installed locally during development, not published 
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
-[1.2.3]: https://github.com/Ziminli/dsh-session-search/compare/v1.1.0...v1.2.3
-[1.1.0]: https://github.com/Ziminli/dsh-session-search/compare/v1.0.0...v1.1.0
+[1.3.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.0
+[1.2.3]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.3
+[1.2.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.2
+[1.2.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.1
+[1.2.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.0
+[1.1.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.0.0

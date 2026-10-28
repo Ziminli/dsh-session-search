@@ -81,6 +81,33 @@ window.__ModuleLoader__.load({
     });
     Object.assign(en, {filters: 'Search filters', tips: 'Search tips & matching rules', session: 'Session', readyTitle: 'Your conversations, within reach', emptyTitle: 'No matches yet', pendingTitle: 'More history to search', resultsHint: 'Matching messages', filterNames: 'Filter session list', navigation: 'Search navigation', typoExample: 'wrokspace → workspace', subsequenceExample: 'wrkspc → workspace'});
     Object.assign(zh, {filters: '搜索筛选', tips: '搜索提示与匹配规则', session: '会话', readyTitle: '轻松找回对话中的细节', emptyTitle: '暂未找到匹配', pendingTitle: '还有历史记录待搜索', resultsHint: '匹配消息', filterNames: '筛选会话列表', navigation: '搜索导航', typoExample: 'wrokspace → workspace', subsequenceExample: 'wrkspc → workspace'});
+    Object.assign(en, {
+      searchMode: 'When to search', liveMode: 'Real-time (300 ms debounce)', submitMode: 'Only on Enter / Search',
+      modeHint: 'Applies to this profile. In Enter / Search mode, query and filter edits wait for submission.',
+      save: 'Save', saving: 'Saving…', saved: 'Saved', settingsLoading: 'Loading search settings…', settingsError: 'Could not load search settings.',
+      pendingChanges: 'Changes pending — press Enter or Search to apply the entire query and filters.',
+      selectAll: 'Select all listed', clearSelection: 'Clear selection (all)', selectedCount: 'selected', filterOptions: 'Filter names or IDs…', noOptions: 'No options found.',
+      workspaceHint: 'Choose one or more workspaces; an empty selection means all. Changing workspaces clears selected sessions.',
+      timeRange: 'Message time', allTime: 'All time', today: 'Today', last24h: 'Last 24 hours', last7d: 'Last 7 days', thisMonth: 'This month', custom: 'Custom',
+      startDate: 'Start date', endDate: 'End date', timeHint: 'Uses message timestamps, not session activity. Dates use your browser’s local timezone; the end date includes the entire local day. Relative ranges are fixed when searching and stay fixed while loading more.',
+      timeError: 'Choose valid dates with the start date on or before the end date.',
+      submitReady: 'Press Enter or Search to search with these filters.',
+      sessionLimit: 'Select at most 1,000 sessions, or clear the selection to search all sessions.',
+      workspaceLimit: 'Select at most 200 workspaces, or clear the selection to search all workspaces.'
+    });
+    Object.assign(zh, {
+      searchMode: '搜索触发方式', liveMode: '实时搜索（防抖 300 毫秒）', submitMode: '仅按回车 / 点击搜索时',
+      modeHint: '保存到当前配置档。回车 / 搜索模式下，文本与筛选修改将在提交后生效。',
+      save: '保存', saving: '正在保存…', saved: '已保存', settingsLoading: '正在加载搜索设置…', settingsError: '无法加载搜索设置。',
+      pendingChanges: '有待应用的修改 — 按回车或点击搜索以应用完整文本与筛选条件。',
+      selectAll: '全选当前列表', clearSelection: '清除选择（全部）', selectedCount: '项已选', filterOptions: '筛选名称或 ID…', noOptions: '没有符合条件的选项。',
+      workspaceHint: '可选择多个工作区；未选择表示全部。更改工作区将清除已选会话。',
+      timeRange: '消息时间', allTime: '所有时间', today: '今天', last24h: '最近 24 小时', last7d: '最近 7 天', thisMonth: '本月', custom: '自定义',
+      startDate: '开始日期', endDate: '结束日期', timeHint: '按消息时间戳筛选，而非会话活动时间。日期采用浏览器本地时区；结束日期包含当地整天。相对时间在搜索时固定，加载更多时不会移动。',
+      timeError: '请选择有效日期，且开始日期不得晚于结束日期。', submitReady: '按回车或点击搜索，使用这些筛选条件开始搜索。',
+      sessionLimit: '最多选择 1,000 个会话，或清除选择以搜索所有会话。',
+      workspaceLimit: '最多选择 200 个工作区，或清除选择以搜索所有工作区。'
+    });
     const css = `
     .dss-page{box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;width:100%;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:14px;line-height:1.5;container-type:inline-size}
     .dss-page *{box-sizing:border-box}.dss-page [hidden]{display:none!important}.dss-page p{margin:0}.dss-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.65}
@@ -95,10 +122,11 @@ window.__ModuleLoader__.load({
     .dss-divider{border:0;border-top:1px solid var(--dsw-alias-border-l1);margin:26px 0 20px;width:100%}.dss-results-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}.dss-results-title{font-size:14px;font-weight:600;margin:0}.dss-display-options{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.dss-page select option{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary)}.dss-views{display:inline-flex;gap:2px;padding:3px;background:var(--dsw-alias-bg-layer-2);border-radius:8px}.dss-page .dss-view{font-size:12px;border-color:transparent;padding:3px 10px;background:transparent;border-radius:5px;color:var(--dsw-alias-label-secondary)}.dss-page .dss-view[aria-pressed="true"]{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l1);font-weight:600}
     .dss-note{margin:0 0 16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.dss-result-count{color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums}.dss-message{padding:48px 22px;text-align:center;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);line-height:1.8;color:var(--dsw-alias-label-secondary);font-size:13px}.dss-message>svg{display:block;margin:0 auto 16px;padding:12px;box-sizing:content-box;border-radius:16px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}.dss-message h3{font-size:16px;font-weight:600;color:var(--dsw-alias-label-primary);margin:0 0 7px}.dss-page .dss-fuzzy-notice{padding:12px 15px;margin:0 0 16px;border-left:3px solid var(--dsw-alias-brand-primary);border-radius:0 8px 8px 0;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.65}.dss-error{color:var(--dsw-alias-state-error-primary);padding:14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;margin:14px 0;font-size:13px;overflow-wrap:anywhere}
     .dss-hit{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);border-radius:13px;margin-bottom:12px;padding:18px 20px;transition:border-color .15s}.dss-hit:hover{border-color:var(--dsw-alias-border-l2)}.dss-hit h2{font-size:15px;line-height:1.5;margin:0;font-weight:600;overflow-wrap:anywhere}.dss-hit-heading{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dss-meta{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:8px 0 12px;font-size:11px}.dss-event-type{font-weight:500;color:var(--dsw-alias-label-primary)}.dss-id{font-family:monospace;overflow-wrap:anywhere;font-size:10px}.dss-meta .dss-id{margin-left:auto}.dss-badge{display:inline-flex;gap:4px;align-items:center;min-width:0;max-width:100%;font-size:10px;line-height:1.7;font-weight:500;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:5px;padding:1px 6px;vertical-align:middle;overflow-wrap:anywhere}.dss-badge svg{flex-shrink:0}.dss-workspace-badge{max-width:100%}
-    .dss-snippet{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:13px;line-height:1.85;margin:0 0 14px;padding:12px 14px;background:var(--dsw-alias-bg-base);border-radius:8px;max-height:260px;overflow:auto}.dss-snippet mark{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary);font-weight:650;border-radius:3px;text-decoration:underline;text-decoration-color:var(--dsw-alias-brand-primary);text-underline-offset:3px}.dss-actions{display:flex;gap:12px;flex-wrap:wrap}.dss-page .dss-actions button{padding:3px 0;font-size:12px;border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary)}.dss-page .dss-actions .dss-primary{color:var(--dsw-alias-brand-primary);font-weight:500}.dss-page .dss-actions button:hover{color:var(--dsw-alias-brand-primary);text-decoration:underline}.dss-page .dss-more{display:flex;margin:22px auto;padding:9px 20px;border-radius:9px}
+    .dss-snippet{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:13px;line-height:1.85;margin:0 0 14px;padding:12px 14px;background:var(--dsw-alias-bg-base);border-radius:8px;max-height:260px;overflow:auto}.dss-snippet mark{background:var(--dsw-alias-state-warn-primary);color:var(--dss-mark-ink,var(--dsw-alias-bg-base));font-weight:650;border-radius:3px;padding:0 1px;box-shadow:0 0 0 1px var(--dsw-alias-state-warn-primary);text-decoration:none}.dss-actions{display:flex;gap:12px;flex-wrap:wrap}.dss-page .dss-actions button{padding:3px 0;font-size:12px;border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary)}.dss-page .dss-actions .dss-primary{color:var(--dsw-alias-brand-primary);font-weight:500}.dss-page .dss-actions button:hover{color:var(--dsw-alias-brand-primary);text-decoration:underline}.dss-page .dss-more{display:flex;margin:22px auto;padding:9px 20px;border-radius:9px}
     .dss-group{border:1px solid var(--dsw-alias-border-l1);border-radius:13px;margin:0 0 12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dss-group h2{font-size:14px;margin:0}.dss-page .dss-group-toggle{display:flex;align-items:center;text-align:left;gap:11px;width:100%;border:0;border-radius:0;padding:17px 20px 10px;background:transparent}.dss-group-title{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}.dss-chevron{flex-shrink:0;color:var(--dsw-alias-label-secondary);transition:transform .15s}.dss-group-toggle[aria-expanded="true"] .dss-chevron{transform:rotate(90deg)}.dss-group-count{font-size:11px;font-weight:500;color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2);border-radius:6px;padding:3px 8px;text-align:right}.dss-group-meta{padding:0 20px 15px 45px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px}.dss-group-body{margin:0 18px 18px 26px;padding-left:14px;border-left:2px solid var(--dsw-alias-border-l2)}.dss-group-body .dss-hit{background:var(--dsw-alias-bg-base);padding:12px 14px}.dss-group-body .dss-snippet{background:var(--dsw-alias-bg-layer-1)}.dss-group-body .dss-meta{margin-top:0}.dss-group-body .dss-message{padding:18px}.dss-group-progress{padding:8px 0;font-size:11px}.dss-group .dss-more{margin:12px auto}.dss-zero{display:inline-block;width:2px;min-height:1em;vertical-align:text-bottom;background:var(--dsw-alias-brand-primary)}
     @container(max-width:720px){.dss-head{padding:18px 20px}.dss-body{padding:20px}.dss-controls{padding:16px}.dss-filter-grid{grid-template-columns:1fr 1fr}.dss-session-field{grid-column:1 / -1}.dss-field:first-child{grid-column:1 / -1}.dss-shortcut{display:none}.dss-page .dss-refresh{margin-left:0}}
     @container(max-width:480px){.dss-head{padding:16px}.dss-head .dss-muted{font-size:11px}.dss-emblem{width:34px;height:34px;border-radius:10px}.dss-brand{gap:10px}.dss-page h1{font-size:18px}.dss-body{padding:16px 12px 28px}.dss-form{flex-wrap:wrap;gap:8px}.dss-searchbox{flex-basis:100%}.dss-page .dss-submit{width:100%;padding:8px}.dss-session-controls{grid-template-columns:1fr}.dss-options{align-items:flex-start;gap:12px;flex-direction:column}.dss-hit{padding:14px}.dss-meta .dss-id{margin-left:0}.dss-results-toolbar{align-items:flex-start}.dss-group-toggle .dss-group-count{max-width:105px}.dss-group-body{margin-left:12px;padding-left:10px}.dss-group-meta{padding-left:20px}}
+    .dss-picker{position:relative;min-width:0}.dss-page .dss-picker-trigger{width:100%;justify-content:space-between;text-align:left;min-height:38px}.dss-picker-panel{position:absolute;z-index:20;top:calc(100% + 5px);left:0;width:100%;min-width:min(280px,80vw);max-width:85vw;padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-base)}.dss-picker-panel>input{width:100%}.dss-picker-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.dss-page .dss-picker-tools button{font-size:11px;padding:3px 6px}.dss-picker-list{max-height:240px;overflow:auto;overscroll-behavior:contain}.dss-picker-option{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:6px;overflow-wrap:anywhere;font-size:12px;cursor:pointer}.dss-picker-option:hover{background:var(--dsw-alias-bg-layer-2)}.dss-picker-option input{flex-shrink:0;width:15px;height:15px;min-height:0;padding:0;margin:3px 0;accent-color:var(--dsw-alias-brand-primary)}.dss-time-grid{margin-top:14px}.dss-pending{margin:12px 0;color:var(--dsw-alias-state-warn-primary);font-size:12px}.dss-settings{height:auto;display:block;padding:16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l1)}.dss-settings .dss-field{margin-bottom:12px}.dss-settings .dss-save-row{display:flex;align-items:center;gap:12px}.dss-zero{background:var(--dsw-alias-state-warn-primary)!important}
     @media(prefers-reduced-motion:reduce){.dss-page *{transition:none!important}}
     `;
     function Icon({size = 20}) {
@@ -129,13 +157,149 @@ window.__ModuleLoader__.load({
       parts.push(source.slice(start));
       return h(React.Fragment, null, ...parts);
     }
+    // Parse date inputs as browser-local calendar dates, never UTC date-only strings.
+    function localDay(value) {
+      if (!value) return undefined;
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+      if (!match) return NaN;
+      const [, year, month, day] = match.map(Number);
+      const date = new Date(0); date.setFullYear(year, month - 1, day); date.setHours(0, 0, 0, 0);
+      return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date.getTime() : NaN;
+    }
+    function timeBounds(preset, start, end, now) {
+      if (preset === 'all') return {};
+      if (preset === 'custom') {
+        const after = localDay(start), endDay = localDay(end);
+        if ((after !== undefined && !Number.isFinite(after)) || (endDay !== undefined && !Number.isFinite(endDay)) || (after !== undefined && endDay !== undefined && after > endDay)) return null;
+        const date = endDay === undefined ? null : new Date(endDay);
+        if (date) date.setDate(date.getDate() + 1);
+        return {after, before: date?.getTime()};
+      }
+      if (preset === '24h' || preset === '7d') return {after: now - (preset === '24h' ? 1 : 7) * 86400000, before: now};
+      const date = new Date(now); date.setHours(0, 0, 0, 0);
+      if (preset === 'month') date.setDate(1);
+      return {after: date.getTime(), before: now};
+    }
     return {
       inject: ['slots', 'layout', 'locale', 'uiWorkspace'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, 'en', en));
         ctx.effect(() => ctx.locale.register(NS, 'zh', zh));
         const t = ctx.locale.bind(NS);
-        const stored = {query: '', scope: '', workspaceId: '', includeSubagents: false, includeArchived: false, finalOnly: true, order: 'newest', matchCase: false, wholeWord: false, useRegex: false, fuzzy: 'off', view: 'timeline'};
+        const stored = {query: '', sessionIds: [], workspaceIds: [], includeSubagents: false, includeArchived: false, finalOnly: true, order: 'newest', matchCase: false, wholeWord: false, useRegex: false, fuzzy: 'off', view: 'timeline', timePreset: 'all', startDate: '', endDate: ''};
+        const settingListeners = new Set();
+        let settingsEpoch = 0;
+        async function settingsApi(method = 'GET', searchMode, signal) {
+          const response = await fetch(new URL('api/local-session-search-settings', document.baseURI), {
+            method, credentials: 'same-origin', cache: 'no-store', signal,
+            ...(method === 'POST' ? {headers: {'Content-Type': 'application/json'}, body: JSON.stringify({searchMode})} : {})
+          });
+          const value = await response.json();
+          if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
+          if (!['live', 'submit'].includes(value.searchMode)) throw new Error(t('settingsError'));
+          return value;
+        }
+        function SettingsForm({view}) {
+          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
+          const [mode, setMode] = React.useState('live');
+          const [loaded, setLoaded] = React.useState(false);
+          const [busy, setBusy] = React.useState(false);
+          const [error, setError] = React.useState('');
+          const [saved, setSaved] = React.useState(false);
+          const [retry, setRetry] = React.useState(0);
+          const control = React.useRef(null);
+          const id = React.useId();
+          React.useEffect(() => {
+            const controller = new AbortController(); control.current = controller;
+            setLoaded(false); setError('');
+            settingsApi('GET', undefined, controller.signal).then(value => {
+              if (!controller.signal.aborted) {setMode(value.searchMode); setLoaded(true);}
+            }).catch(err => {if (!controller.signal.aborted) setError(err.message);});
+            return () => {controller.abort(); control.current?.abort();};
+          }, [retry]);
+          if (view === 'summary') return h('p', null, t('modeHint'));
+          const save = async event => {
+            event.preventDefault(); if (!loaded || busy) return;
+            const controller = new AbortController(); control.current = controller;
+            setBusy(true); setError(''); setSaved(false);
+            try {
+              const value = await settingsApi('POST', mode, controller.signal);
+              if (controller.signal.aborted) return;
+              settingsEpoch++; for (const listener of settingListeners) listener(value.searchMode);
+              setMode(value.searchMode); setSaved(true);
+            } catch (err) {if (!controller.signal.aborted) setError(err.message);}
+            finally {if (!controller.signal.aborted) setBusy(false);}
+          };
+          return h('form', {className: 'dss-page dss-settings', onSubmit: save, 'aria-busy': !loaded && !error || busy}, h('style', null, css),
+            h('div', {className: 'dss-field'}, h('label', {htmlFor: id}, t('searchMode')),
+              h('select', {id, value: mode, disabled: !loaded || busy, onChange: e => {setMode(e.target.value); setSaved(false);}},
+                h('option', {value: 'live'}, t('liveMode')), h('option', {value: 'submit'}, t('submitMode'))), h('p', {className: 'dss-muted'}, t('modeHint'))),
+            !loaded && !error && h('p', {role: 'status'}, t('settingsLoading')),
+            error && h('div', {className: 'dss-error', role: 'alert'}, error, !loaded && h('button', {type: 'button', onClick: () => setRetry(v => v + 1)}, t('retry'))),
+            h('div', {className: 'dss-save-row'}, h('button', {type: 'submit', className: 'dss-primary', disabled: !loaded || busy}, t(busy ? 'saving' : 'save')),
+              saved && h('span', {role: 'status'}, t('saved'))));
+        }
+        function MultiPicker({label, allLabel, values, options, onChange, disabled, hint}) {
+          const [open, setOpen] = React.useState(false);
+          const [filter, setFilter] = React.useState('');
+          const root = React.useRef(null), trigger = React.useRef(null), field = React.useRef(null);
+          const id = React.useId();
+          React.useEffect(() => {if (disabled) setOpen(false);}, [disabled]);
+          React.useEffect(() => {
+            if (!open) return;
+            field.current?.focus();
+            const outside = event => {if (!root.current?.contains(event.target)) setOpen(false);};
+            document.addEventListener('pointerdown', outside);
+            return () => document.removeEventListener('pointerdown', outside);
+          }, [open]);
+          const known = new Set(options.map(option => option.id));
+          const entries = [...options, ...values.filter(value => !known.has(value)).map(value => ({id: value, label: value}))];
+          const visible = entries.filter(option => `${option.label} ${option.id}`.toLowerCase().includes(filter.toLowerCase()));
+          const selected = new Set(values);
+          return h('div', {className: 'dss-picker', ref: root, onBlur: event => {if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);}, onKeyDown: event => {
+            if (event.key === 'Escape' && open) {event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus();}
+          }}, h('button', {ref: trigger, type: 'button', className: 'dss-picker-trigger', disabled, title: hint, 'aria-label': label, 'aria-expanded': open, 'aria-controls': id, 'aria-haspopup': 'dialog', onClick: () => setOpen(value => !value)},
+            values.length ? `${values.length} ${t('selectedCount')}` : allLabel, h('span', {'aria-hidden': true}, '▾')),
+            open && h('div', {id, className: 'dss-picker-panel', role: 'dialog', 'aria-label': label},
+              h('input', {ref: field, type: 'search', value: filter, placeholder: t('filterOptions'), 'aria-label': `${label}: ${t('filterNames')}`, onChange: e => setFilter(e.target.value)}),
+              h('div', {className: 'dss-picker-tools'},
+                h('button', {type: 'button', onClick: () => onChange([...new Set([...values, ...visible.map(option => option.id)])])}, t('selectAll')),
+                h('button', {type: 'button', onClick: () => onChange([])}, t('clearSelection'))),
+              h('div', {className: 'dss-picker-list', role: 'group', 'aria-label': label}, visible.length ? visible.map(option => h('label', {key: option.id, className: 'dss-picker-option', title: option.title || option.id},
+                h('input', {type: 'checkbox', checked: selected.has(option.id), onChange: e => onChange(e.target.checked ? [...values, option.id] : values.filter(value => value !== option.id))}), h('span', null, option.label))) : h('p', {className: 'dss-muted'}, t('noOptions')))));
+        }
+        // Opaque warn fill remains yellow in both palettes. Pick a contrasting ink
+        // from existing semantic surfaces, recalculating when the palette changes.
+        function useHighlightContrast() {
+          const root = React.useRef(null);
+          React.useEffect(() => {
+            const node = root.current; if (!node) return;
+            const probe = document.createElement('span'); probe.hidden = true; node.append(probe);
+            const luminance = color => {
+              const rgb = color.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+              if (!rgb || rgb.length !== 3) return null;
+              return rgb.map(value => {const v = value / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;}).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+            };
+            const update = () => {
+              const readColor = token => {probe.style.color = `var(${token})`; return luminance(getComputedStyle(probe).color);};
+              const yellow = readColor('--dsw-alias-state-warn-primary');
+              if (yellow === null) return;
+              let best = '', score = 0;
+              for (const token of ['--dsw-alias-label-primary', '--dsw-alias-bg-base']) {
+                const ink = readColor(token); if (ink === null) continue;
+                const contrast = (Math.max(ink, yellow) + .05) / (Math.min(ink, yellow) + .05);
+                if (contrast > score) {score = contrast; best = token;}
+              }
+              if (best) node.style.setProperty('--dss-mark-ink', `var(${best})`);
+            };
+            update();
+            const observer = new MutationObserver(update);
+            observer.observe(document.body, {attributes: true, attributeFilter: ['style', 'class', 'data-ds-dark-theme']});
+            observer.observe(document.documentElement, {attributes: true, attributeFilter: ['style', 'class']});
+            return () => {observer.disconnect(); probe.remove();};
+          }, []);
+          return root;
+        }
         const focusListeners = new Set();
         const focus = () => {for (const fn of focusListeners) fn();};
         ctx.effect(() => {
@@ -150,7 +314,7 @@ window.__ModuleLoader__.load({
         });
         async function api(input, signal) {
           const params = new URLSearchParams();
-          for (const [key, value] of Object.entries(input)) if (value !== undefined && value !== '') params.set(key, value);
+          for (const [key, value] of Object.entries(input)) if (value !== undefined && value !== '') params.set(key, Array.isArray(value) ? JSON.stringify(value) : value);
           // Relative to the mounted application URL; signed same-origin cookie only.
           const response = await fetch(new URL(`api/local-session-search?${params}`, document.baseURI), {credentials: 'same-origin', cache: 'no-store', signal});
           const value = await response.json();
@@ -160,8 +324,9 @@ window.__ModuleLoader__.load({
         // Keep pages mounted across view switches; a switch is presentation only.
         // Request keys isolate query/filter changes, and abort/generation guards
         // prevent late replies or pagination from overwriting a newer search.
-        function usePaged(request, enabled, revision) {
+        function usePaged(request, enabled, revision, delay = 300) {
           const key = JSON.stringify([request, revision]);
+          const active = React.useRef({key, enabled}); active.current = {key, enabled};
           const [state, setState] = React.useState({key, page: null, busy: false, error: ''});
           const [retry, setRetry] = React.useState(0);
           const cache = React.useRef(null);
@@ -176,33 +341,34 @@ window.__ModuleLoader__.load({
             setState({key, page: cached, busy: enabled && !cached, error: ''});
             if (enabled && !cached) {
               const timer = setTimeout(() => {
+                if (controller.signal.aborted || active.current.key !== key || !active.current.enabled) return;
                 api(requestRef.current, controller.signal).then(page => {
-                  if (controller.signal.aborted) return;
+                  if (controller.signal.aborted || active.current.key !== key || !active.current.enabled) return;
                   cache.current = {key, page}; setState({key, page, busy: false, error: ''});
                 }).catch(err => {
-                  if (!controller.signal.aborted) setState({key, page: null, busy: false, error: err.message});
+                  if (!controller.signal.aborted && active.current.key === key && active.current.enabled) setState({key, page: null, busy: false, error: err.message});
                 });
-              }, 300);
+              }, delay);
               return () => {clearTimeout(timer); controller.abort(); moreControl.current?.abort();};
             }
             return () => {controller.abort(); moreControl.current?.abort();};
-          }, [key, enabled, retry]);
-          const value = state.key === key ? state : {page: null, busy: enabled, error: ''};
+          }, [key, enabled, retry, delay]);
+          const value = enabled && state.key === key ? state : {page: null, busy: enabled, error: ''};
           async function more() {
-            if (!enabled || value.busy || !value.page?.nextCursor) return;
+            if (!enabled || active.current.key !== key || !active.current.enabled || value.busy || moreControl.current && !moreControl.current.signal.aborted || !value.page?.nextCursor) return;
             const controller = new AbortController(); moreControl.current = controller;
             const owner = current.current;
             setState(old => ({...old, busy: true, error: ''}));
             try {
               const next = await api({...request, cursor: value.page.nextCursor}, controller.signal);
-              if (controller.signal.aborted || owner !== current.current) return;
+              if (controller.signal.aborted || owner !== current.current || active.current.key !== key || !active.current.enabled) return;
               const identity = item => `${item.sessionId}:${item.seq ?? 'group'}`;
               const seen = new Set(value.page.items.map(identity));
               const page = {...next, items: [...value.page.items, ...next.items.filter(item => !seen.has(identity(item)))]};
               cache.current = {key, page}; setState({key, page, busy: false, error: ''});
             } catch (err) {
-              if (!controller.signal.aborted && owner === current.current) setState(old => ({...old, busy: false, error: `${err.message} — ${t('stale')}`}));
-            }
+              if (!controller.signal.aborted && owner === current.current && active.current.key === key && active.current.enabled) setState(old => ({...old, busy: false, error: `${err.message} — ${t('stale')}`}));
+            } finally {if (moreControl.current === controller) moreControl.current = null;}
           }
           return {...value, more, refresh: () => {cache.current = null; setRetry(v => v + 1);}};
         }
@@ -239,17 +405,18 @@ window.__ModuleLoader__.load({
               h('button', {type: 'button', disabled: hit.archived, title: hit.archived ? t('archivedHint') : t('open'), onClick: () => ctx.uiWorkspace.openSession(hit.sessionId)}, t('open'), h(Glyph, {kind: 'arrow', size: 13})),
               within && h('button', {type: 'button', className: 'dss-primary', onClick: () => within(hit.sessionId)}, t('within'))));
         }
-        function SessionGroup({group, request, enabled, revision, within}) {
+        function SessionGroup({group, request, enabled, revision, within, delay}) {
           const [expanded, setExpanded] = React.useState(false);
           const bodyId = React.useId();
-          const result = usePaged({...request, action: 'search', sessionId: group.sessionId}, enabled && expanded, revision);
+          // Narrow with the same plural scope contract, preserving frozen time bounds.
+          const result = usePaged({...request, action: 'search', sessionIds: [group.sessionId]}, enabled && expanded, revision, delay);
           const changed = result.page && result.page.total !== group.count;
           return h('section', {className: 'dss-group'},
             h('h2', null, h('button', {type: 'button', className: 'dss-group-toggle', 'aria-expanded': expanded, 'aria-controls': bodyId, onClick: () => setExpanded(v => !v)},
               h('svg', {className: 'dss-chevron', width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, 'aria-hidden': true}, h('path', {d: 'm6 3 5 5-5 5'})),
               h('span', {className: 'dss-group-title'}, group.title || t('untitled')),
               h('span', {className: 'dss-group-count'}, `${group.count} · ${t('matches')}`))),
-            h('div', {className: 'dss-group-meta dss-muted'}, !request.workspaceId && h(WorkspaceLabel, {hit: group}), h(Badges, {hit: group}),
+            h('div', {className: 'dss-group-meta dss-muted'}, request.workspaceIds.length !== 1 && h(WorkspaceLabel, {hit: group}), h(Badges, {hit: group}),
               h('span', {className: 'dss-id', title: group.sessionId}, shortId(group.sessionId)),
               group.time !== undefined && h('time', {dateTime: new Date(group.time).toISOString()}, new Date(group.time).toLocaleString())),
             h('div', {id: bodyId, hidden: !expanded, className: 'dss-group-body', 'aria-busy': result.busy},
@@ -261,8 +428,8 @@ window.__ModuleLoader__.load({
               result.page && h('p', {className: 'dss-muted dss-group-progress'}, `${t('loadedMatches')}: ${result.page.items.length} / ${result.page.total}`),
               result.page?.nextCursor && h('button', {type: 'button', className: 'dss-more', disabled: result.busy, onClick: result.more}, result.busy ? t('loading') : t('more'))));
         }
-        function SessionGroups({request, enabled, revision, within}) {
-          const result = usePaged({...request, action: 'groups'}, enabled && Boolean(request.query.trim()), revision);
+        function SessionGroups({request, enabled, revision, within, delay}) {
+          const result = usePaged({...request, action: 'groups'}, enabled && Boolean(request.query.trim()), revision, delay);
           const key = JSON.stringify([request, revision]);
           return h('div', {hidden: !enabled},
             h('div', {className: 'dss-note dss-muted'}, h('span', {title: t('treeHint')}, t('bySession')),
@@ -272,14 +439,14 @@ window.__ModuleLoader__.load({
             h('div', {'aria-live': 'polite', 'aria-busy': result.busy},
               !request.query.trim() ? h(EmptyState) : result.busy && !result.page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : result.page?.items.length === 0 ? h(EmptyState, {empty: true}) : null,
               h(FuzzyNotice, result),
-              result.page?.items.map(group => h(SessionGroup, {key: `${key}:${group.sessionId}`, group, request, enabled, revision, within})),
+              result.page?.items.map(group => h(SessionGroup, {key: `${key}:${group.sessionId}`, group, request, enabled, revision, within, delay})),
               result.page?.nextCursor && h('button', {type: 'button', className: 'dss-more', disabled: result.busy, onClick: result.more}, result.busy ? t('loading') : t('moreSessions'))));
         }
         function SearchPage() {
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
           const [query, setQuery] = React.useState(stored.query);
-          const [scope, setScope] = React.useState(stored.scope);
-          const [workspaceId, setWorkspaceId] = React.useState(stored.workspaceId);
+          const [sessionIds, setSessionIds] = React.useState(stored.sessionIds);
+          const [workspaceIds, setWorkspaceIds] = React.useState(stored.workspaceIds);
           const [workspaces, setWorkspaces] = React.useState([]);
           const [includeSubagents, setIncludeSubagents] = React.useState(stored.includeSubagents);
           const [includeArchived, setIncludeArchived] = React.useState(stored.includeArchived);
@@ -290,19 +457,86 @@ window.__ModuleLoader__.load({
           const [useRegex, setUseRegex] = React.useState(stored.useRegex);
           const [fuzzy, setFuzzy] = React.useState(stored.fuzzy);
           const [view, setView] = React.useState(stored.view);
-          const tree = !scope && view === 'session';
+          const tree = sessionIds.length !== 1 && view === 'session';
           const content = finalOnly ? 'final' : 'all';
-          const [filter, setFilter] = React.useState('');
+          const [timePreset, setTimePreset] = React.useState(stored.timePreset);
+          const [startDate, setStartDate] = React.useState(stored.startDate);
+          const [endDate, setEndDate] = React.useState(stored.endDate);
+          const [settings, setSettings] = React.useState({mode: null, error: '', revision: 0});
+          const [settingsRetry, setSettingsRetry] = React.useState(0);
+          const [submitted, setSubmitted] = React.useState(null);
+          const markRoot = useHighlightContrast();
           const [catalog, setCatalog] = React.useState([]);
           const [catalogState, setCatalogState] = React.useState('loading');
+          const [loadedCatalogScope, setLoadedCatalogScope] = React.useState(null);
+          const [catalogError, setCatalogError] = React.useState('');
+          const [selectionError, setSelectionError] = React.useState('');
           const [catalogVersion, setCatalogVersion] = React.useState(0);
           const [version, setVersion] = React.useState(0);
-          const request = {query, workspaceId: workspaceId || undefined, includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex, fuzzy};
-          const timeline = usePaged({...request, sessionId: scope || undefined}, !tree && Boolean(query.trim()), version);
+          // Refreshing choices alone must not disable/restart a submitted search.
+          // A genuinely different scope still waits for catalog reconciliation.
+          const catalogScopeKey = JSON.stringify([workspaceIds, includeSubagents, includeArchived]);
+          const catalogReady = loadedCatalogScope === catalogScopeKey;
+          const draft = {query, workspaceIds, sessionIds, includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex, fuzzy, timePreset, startDate, endDate};
+          const draftKey = JSON.stringify(draft);
+          // Clock reads occur only when the draft changes or an explicit search is
+          // submitted. Pagination and presentation-only renders reuse this value.
+          const resolved = React.useMemo(() => timeBounds(timePreset, startDate, endDate, Date.now()), [draftKey, version, settings.revision]);
+          const makeRequest = bounds => ({query, workspaceIds: [...workspaceIds], sessionIds: [...sessionIds], includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex, fuzzy, ...bounds});
+          const liveRequest = React.useMemo(() => makeRequest(resolved || {}), [draftKey, resolved]);
+          // Once a draft is edited, returning to old text must not silently run
+          // that old submission again; only Enter/Search re-arms submit mode.
+          React.useEffect(() => {setSubmitted(old => old?.draftKey === draftKey ? old : null);}, [draftKey]);
+          const currentSubmission = submitted?.draftKey === draftKey && submitted?.settingsRevision === settings.revision;
+          const request = currentSubmission ? submitted.request : liveRequest;
+          const pendingChanges = settings.mode === 'submit' && Boolean(query.trim()) && !currentSubmission;
+          const enabled = Boolean(settings.mode && !settings.error && resolved && query.trim() && catalogReady && !selectionError && (settings.mode === 'live' || currentSubmission));
+          const revision = `${settings.revision}:${version}`;
+          const delay = settings.mode === 'live' ? 300 : 0;
+          const timeline = usePaged(request, enabled && !tree, revision, delay);
           const {page, error, busy, more} = timeline;
           const input = React.useRef(null);
-          const setText = value => {stored.query = value; setQuery(value);};
-          const setTarget = value => {stored.scope = value; setScope(value);};
+          const setText = value => {stored.query = value; setQuery(value); if (!value.trim()) {setSubmitted(null); setSelectionError(''); setVersion(v => v + 1);}};
+          const setTarget = values => {
+            // Validate the raw selection; never silently truncate Select all.
+            if (values.length > 1000) {setSelectionError('sessionLimit'); return;}
+            setSelectionError(''); stored.sessionIds = values; setSessionIds(values);
+          };
+          const submit = () => {
+            if (!settings.mode || settings.error || selectionError || !catalogReady || !query.trim()) return;
+            const bounds = timeBounds(timePreset, startDate, endDate, Date.now());
+            if (!bounds) return;
+            setSubmitted({draftKey, settingsRevision: settings.revision, request: makeRequest(bounds)});
+            setVersion(v => v + 1);
+          };
+          React.useEffect(() => {
+            let controller;
+            let active = true;
+            const adopt = mode => {
+              if (!active) return;
+              // An unchanged focus revalidation must preserve the submitted
+              // snapshot, relative-time bounds and pagination cache.
+              setSettings(old => old.mode === mode && !old.error ? old : {mode, error: '', revision: old.mode === mode ? old.revision : old.revision + 1});
+            };
+            const revalidate = () => {
+              controller?.abort(); controller = new AbortController();
+              const owner = controller, epoch = settingsEpoch;
+              settingsApi('GET', undefined, owner.signal).then(value => {
+                if (active && !owner.signal.aborted && settingsEpoch === epoch) adopt(value.searchMode);
+              }).catch(err => {
+                if (active && !owner.signal.aborted && settingsEpoch === epoch) setSettings(old => ({...old, error: err.message}));
+              });
+            };
+            const localChange = mode => {
+              controller?.abort();
+              setSubmitted(null);
+              setSettings(old => ({mode, error: '', revision: old.revision + 1}));
+            };
+            settingListeners.add(localChange);
+            window.addEventListener('focus', revalidate);
+            revalidate();
+            return () => {active = false; controller?.abort(); settingListeners.delete(localChange); window.removeEventListener('focus', revalidate);};
+          }, [settingsRetry]);
           const setFuzzyMode = value => {
             stored.fuzzy = value; setFuzzy(value);
             if (value !== 'off') {stored.useRegex = false; setUseRegex(false);}
@@ -311,18 +545,20 @@ window.__ModuleLoader__.load({
             stored.useRegex = enabled; setUseRegex(enabled);
             if (enabled) {stored.fuzzy = 'off'; setFuzzy('off');}
           };
-          const setWorkspace = value => {
-            stored.workspaceId = value; setWorkspaceId(value);
-            setTarget(''); setFilter(''); setCatalog([]); setCatalogState('loading');
+          const setWorkspace = values => {
+            if (values.length > 200) {setSelectionError('workspaceLimit'); return;}
+            if (JSON.stringify(values) === JSON.stringify(workspaceIds)) {setSelectionError(''); return;}
+            stored.workspaceIds = values; setWorkspaceIds(values);
+            setTarget([]); setCatalog([]); setCatalogState('loading');
           };
           const setSubagents = enabled => {
             stored.includeSubagents = enabled; setIncludeSubagents(enabled);
             // Turning the scope off must not leave a hidden subagent selected.
-            if (!enabled && scope && !catalog.some(item => item.sessionId === scope && !item.subagent)) setTarget('');
+            if (!enabled) setTarget(sessionIds.filter(id => catalog.some(item => item.sessionId === id && !item.subagent)));
           };
           const setArchives = enabled => {
             stored.includeArchived = enabled; setIncludeArchived(enabled);
-            if (!enabled && catalog.find(item => item.sessionId === scope)?.archived) setTarget('');
+            if (!enabled) setTarget(sessionIds.filter(id => !catalog.find(item => item.sessionId === id)?.archived));
           };
           React.useEffect(() => {
             const refocus = () => {input.current?.focus(); input.current?.select();};
@@ -332,22 +568,48 @@ window.__ModuleLoader__.load({
           React.useEffect(() => {
             let active = true;
             const controller = new AbortController();
-            setCatalogState('loading');
-            api({action: 'sessions', workspaceId: workspaceId || undefined, includeSubagents, includeArchived}, controller.signal).then(value => {
-              if (active) {
-                setWorkspaces(value.workspaces || []);
-                setCatalog(value.items); setCatalogState('ready');
-                if (stored.scope && !value.items.some(item => item.sessionId === stored.scope)) {stored.scope = ''; setScope('');}
+            setCatalogState('loading'); setCatalogError('');
+            const load = async () => {
+              let value;
+              try {value = await api({action: 'sessions', workspaceIds, includeSubagents, includeArchived}, controller.signal);}
+              catch (err) {
+                if (controller.signal.aborted || !workspaceIds.length) throw err;
+                // A deleted workspace makes the scoped catalog invalid. Read
+                // the full catalog only to recover its current selection IDs.
+                value = await api({action: 'sessions', workspaceIds: [], includeSubagents, includeArchived}, controller.signal);
+                if (workspaceIds.every(id => value.workspaces.some(item => item.workspaceId === id))) throw err;
               }
-            }).catch(err => {if (active && err.name !== 'AbortError') setCatalogState('error');});
+              if (!active || controller.signal.aborted) return;
+              setWorkspaces(value.workspaces || []);
+              const knownWorkspaces = new Set(value.workspaces.map(item => item.workspaceId));
+              const remainingWorkspaces = workspaceIds.filter(id => knownWorkspaces.has(id));
+              if (remainingWorkspaces.length !== workspaceIds.length) {
+                stored.workspaceIds = remainingWorkspaces; setWorkspaceIds(remainingWorkspaces);
+                setTarget([]); setCatalog([]);
+                return; // Re-fetch using the reconciled plural workspace scope.
+              }
+              const knownSessions = new Set(value.items.map(item => item.sessionId));
+              const remainingSessions = stored.sessionIds.filter(id => knownSessions.has(id));
+              if (remainingSessions.length !== stored.sessionIds.length) setTarget(remainingSessions);
+              setCatalog(value.items); setCatalogState('ready'); setLoadedCatalogScope(catalogScopeKey);
+            };
+            load().catch(err => {if (active && !controller.signal.aborted) {setCatalogError(err.message); setCatalogState('error');}});
             return () => {active = false; controller.abort();};
-          }, [catalogVersion, workspaceId, includeSubagents, includeArchived]);
-          const within = sessionId => {setTarget(sessionId); setFilter('');};
-          const selected = catalog.find(item => item.sessionId === scope && (!workspaceId || item.workspaceId === workspaceId));
+          }, [catalogVersion, JSON.stringify(workspaceIds), includeSubagents, includeArchived]);
+          const within = sessionId => {
+            if (!enabled) return;
+            const bounds = timeBounds(timePreset, startDate, endDate, Date.now());
+            if (!bounds) return;
+            setTarget([sessionId]);
+            const nextDraft = {...draft, sessionIds: [sessionId]};
+            setSubmitted({draftKey: JSON.stringify(nextDraft), settingsRevision: settings.revision, request: {...makeRequest(bounds), sessionIds: [sessionId]}});
+            setVersion(v => v + 1);
+          };
+          const selected = sessionIds.length === 1 ? catalog.find(item => item.sessionId === sessionIds[0]) : null;
           const workspaceName = item => item.ungrouped || item.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : item.title || item.path || item.workspaceId;
-          const visible = catalog.filter(item => (!workspaceId || item.workspaceId === workspaceId) && (includeSubagents || !item.subagent) && (includeArchived || !item.archived) && (item.sessionId === scope || `${item.title} ${item.sessionId}`.toLowerCase().includes(filter.toLowerCase())));
-          const options = visible.map(item => h('option', {key: item.sessionId, value: item.sessionId, title: `${item.sessionId}${item.workspacePath ? ` · ${item.workspacePath}` : ''}`}, `${item.title || t('untitled')}${item.subagent ? ` · ${t('subagent')}` : ''}${item.archived ? ` · ${t('archived')}` : ''}${!workspaceId ? ` · ${item.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : item.workspaceTitle || item.workspacePath || ''}` : ''} · ${shortId(item.sessionId)}`));
-          return h('section', {className: 'dss-page', 'aria-label': t('title'), onKeyDown: e => {
+          const visible = catalog.filter(item => (!workspaceIds.length || workspaceIds.includes(item.workspaceId)) && (includeSubagents || !item.subagent) && (includeArchived || !item.archived));
+          const options = visible.map(item => ({id: item.sessionId, title: `${item.sessionId}${item.workspacePath ? ` · ${item.workspacePath}` : ''}`, label: `${item.title || t('untitled')}${item.subagent ? ` · ${t('subagent')}` : ''}${item.archived ? ` · ${t('archived')}` : ''}${workspaceIds.length !== 1 ? ` · ${item.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : item.workspaceTitle || item.workspacePath || ''}` : ''} · ${shortId(item.sessionId)}`}));
+          return h('section', {ref: markRoot, className: 'dss-page', 'aria-label': t('title'), onKeyDown: e => {
             if (e.key === 'Escape' && e.target.tagName !== 'SELECT') {e.preventDefault(); ctx.layout.selectPanel(null);}
           }}, h('style', null, css),
             h('header', {className: 'dss-head'},
@@ -357,9 +619,9 @@ window.__ModuleLoader__.load({
                 h('button', {className: 'dss-icon-button', type: 'button', title: t('close'), 'aria-label': t('close'), onClick: () => ctx.layout.selectPanel(null)}, h(Glyph, {kind: 'back', size: 19})))),
             h('div', {className: 'dss-body'}, h('div', {className: 'dss-inner'},
               h('section', {className: 'dss-controls', 'aria-label': t('filters')},
-                h('form', {className: 'dss-form', onSubmit: e => {e.preventDefault(); setVersion(v => v + 1);}},
+                h('form', {className: 'dss-form', onSubmit: e => {e.preventDefault(); if (!e.nativeEvent?.isComposing) submit();}}, 
                   h('div', {className: 'dss-searchbox'}, h(Icon, {size: 18}),
-                    h('input', {ref: input, className: 'dss-query', type: 'search', value: query, maxLength: 1024, placeholder: t('placeholder'), 'aria-label': t('placeholder'), onChange: e => setText(e.target.value)}),
+                    h('input', {ref: input, className: 'dss-query', type: 'search', value: query, maxLength: 1024, placeholder: t('placeholder'), 'aria-label': t('placeholder'), onKeyDown: e => {if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229)) e.preventDefault();}, onChange: e => setText(e.target.value)}),
                     query && h('button', {className: 'dss-icon-button dss-clear', type: 'button', title: t('clear'), 'aria-label': t('clear'), onClick: () => {setText(''); input.current?.focus();}}, '×'),
                     h('div', {className: 'dss-modes', role: 'group', 'aria-label': t('searchModes')},
                       ...[
@@ -367,18 +629,26 @@ window.__ModuleLoader__.load({
                         ['wholeWord', 'ab', wholeWord, setWholeWord],
                         ['useRegex', '.*', useRegex, setRegexMode]
                       ].map(([name, label, enabled, setEnabled]) => h('button', {key: name, type: 'button', className: `dss-mode${name === 'wholeWord' ? ' dss-mode-word' : ''}`, title: t(name), 'aria-label': t(name), 'aria-pressed': enabled, onClick: () => {stored[name] = !enabled; setEnabled(!enabled);}}, label)))),
-                  h('button', {className: 'dss-primary dss-submit', disabled: !query.trim(), type: 'submit'}, t('search'), h(Glyph, {kind: 'arrow'}))),
+                  h('button', {className: 'dss-primary dss-submit', disabled: !query.trim() || !settings.mode || Boolean(settings.error) || !resolved || Boolean(selectionError) || !catalogReady, type: 'submit'}, t('search'), h(Glyph, {kind: 'arrow'}))),
                 h('div', {className: 'dss-filter-grid'},
-                  h('div', {className: 'dss-field'}, h('label', {htmlFor: 'dss-workspace'}, t('workspace')),
-                    h('select', {id: 'dss-workspace', value: workspaceId, title: t('workspaceHint'), onChange: e => setWorkspace(e.target.value)},
-                      h('option', {value: ''}, t('allWorkspaces')),
-                      workspaceId && !workspaces.some(item => item.workspaceId === workspaceId) && h('option', {value: workspaceId}, workspaceId),
-                      ...workspaces.map(item => h('option', {key: item.workspaceId, value: item.workspaceId, title: item.path || workspaceName(item)}, workspaceName(item))))),
-                  h('div', {className: 'dss-field dss-session-field'}, h('label', {htmlFor: 'dss-scope'}, t('session')),
-                    h('div', {className: 'dss-session-controls'},
-                      h('input', {type: 'search', value: filter, placeholder: t('sessionFilter'), 'aria-label': t('filterNames'), onChange: e => setFilter(e.target.value)}),
-                      h('select', {id: 'dss-scope', value: scope, title: t('pickerHint'), disabled: catalogState !== 'ready', onChange: e => setTarget(e.target.value)},
-                        h('option', {value: ''}, t('all')), scope && !selected && h('option', {value: scope}, `${t('unavailable')} · ${scope}`), ...options)))),
+                  h('div', {className: 'dss-field'}, h('span', {className: 'dss-field-label'}, t('workspace')),
+                    h(MultiPicker, {label: t('workspace'), allLabel: t('allWorkspaces'), values: workspaceIds, hint: t('workspaceHint'), options: workspaces.map(item => ({id: item.workspaceId, label: workspaceName(item), title: item.path})), onChange: setWorkspace})),
+                  h('div', {className: 'dss-field dss-session-field'}, h('span', {className: 'dss-field-label'}, t('session')),
+                    h(MultiPicker, {label: t('session'), allLabel: t('all'), values: sessionIds, hint: t('pickerHint'), options, onChange: setTarget, disabled: !catalogReady}))),
+                h('div', {className: 'dss-filter-grid dss-time-grid'},
+                  h('div', {className: 'dss-field'}, h('label', {htmlFor: 'dss-time'}, t('timeRange')),
+                    h('select', {id: 'dss-time', value: timePreset, 'aria-describedby': 'dss-time-hint', onChange: e => {stored.timePreset = e.target.value; setTimePreset(e.target.value);}},
+                      ...[['all', 'allTime'], ['today', 'today'], ['24h', 'last24h'], ['7d', 'last7d'], ['month', 'thisMonth'], ['custom', 'custom']].map(([value, label]) => h('option', {key: value, value}, t(label))))),
+                  timePreset === 'custom' && h('div', {className: 'dss-field'}, h('label', {htmlFor: 'dss-start-date'}, t('startDate')),
+                    h('input', {id: 'dss-start-date', type: 'date', value: startDate, 'aria-invalid': !resolved, onChange: e => {stored.startDate = e.target.value; setStartDate(e.target.value);}})),
+                  timePreset === 'custom' && h('div', {className: 'dss-field'}, h('label', {htmlFor: 'dss-end-date'}, t('endDate')),
+                    h('input', {id: 'dss-end-date', type: 'date', value: endDate, 'aria-invalid': !resolved, onChange: e => {stored.endDate = e.target.value; setEndDate(e.target.value);}}))),
+                h('p', {className: 'dss-muted', id: 'dss-time-hint'}, t('timeHint')),
+                !resolved && h('p', {className: 'dss-error', role: 'alert'}, t('timeError')),
+                !settings.mode && !settings.error && h('p', {className: 'dss-muted', role: 'status'}, t('settingsLoading')),
+                settings.error && h('div', {className: 'dss-error', role: 'alert'}, t('settingsError'), ' ', settings.error, ' ', h('button', {type: 'button', onClick: () => setSettingsRetry(v => v + 1)}, t('retry'))),
+                pendingChanges && h('p', {className: 'dss-pending', role: 'status'}, t('pendingChanges')),
+                 selectionError && h('p', {className: 'dss-error', role: 'alert'}, t(selectionError)),
                 h('div', {className: 'dss-match-row'}, h('label', {htmlFor: 'dss-fuzzy'}, t('fuzzy')),
                   h('select', {id: 'dss-fuzzy', value: fuzzy, 'aria-describedby': 'dss-fuzzy-hint', onChange: e => setFuzzyMode(e.target.value)},
                     ...[['off', 'fuzzyOff'], ['typo', 'fuzzyTypo'], ['subsequence', 'fuzzySubsequence']].map(([value, label]) => h('option', {key: value, value}, t(label)))),
@@ -387,35 +657,37 @@ window.__ModuleLoader__.load({
                   h('label', {className: 'dss-check', title: t('finalHint')}, h('input', {type: 'checkbox', checked: finalOnly, onChange: e => {stored.finalOnly = e.target.checked; setFinalOnly(e.target.checked);}}), t('finalOnly')),
                   h('label', {className: 'dss-check'}, h('input', {type: 'checkbox', checked: includeSubagents, onChange: e => setSubagents(e.target.checked)}), t('includeSubagents')),
                   h('label', {className: 'dss-check'}, h('input', {type: 'checkbox', checked: includeArchived, onChange: e => setArchives(e.target.checked)}), t('includeArchived')),
-                  h('button', {className: 'dss-refresh', type: 'button', onClick: () => {setCatalogVersion(v => v + 1); setVersion(v => v + 1);}}, h(Glyph, {kind: 'refresh'}), t('refresh'))),
+                  h('button', {className: 'dss-refresh', type: 'button', onClick: () => setCatalogVersion(v => v + 1)}, h(Glyph, {kind: 'refresh'}), t('refresh'))),
                 h('details', {className: 'dss-tips'}, h('summary', null, t('tips')),
                   h('div', {className: 'dss-tip-body'},
                     h('p', {id: 'dss-fuzzy-hint'}, h('strong', null, `${t('fuzzy')}. `), t(fuzzy === 'typo' ? 'fuzzyTypoHint' : fuzzy === 'subsequence' ? 'fuzzySubsequenceHint' : 'fuzzyOffHint')),
                     h('p', null, t('workspaceHint')), h('p', null, t('pickerHint')), h('p', null, t('finalHint')), h('p', null, t('matching')))),
                 useRegex && h('p', {className: 'dss-muted'}, t('regexHint')),
                 catalogState === 'loading' && h('p', {className: 'dss-muted', role: 'status'}, t('loadingSessions')),
-                catalogState === 'error' && h('div', {className: 'dss-error', role: 'alert'}, t('catalogError'), ' ', h('button', {type: 'button', onClick: () => setCatalogVersion(v => v + 1)}, t('retry')))),
+                catalogState === 'error' && h('div', {className: 'dss-error', role: 'alert'}, t('catalogError'), ' ', catalogError, ' ', h('button', {type: 'button', onClick: () => setCatalogVersion(v => v + 1)}, t('retry')))),
               h('hr', {className: 'dss-divider'}),
               h('div', {className: 'dss-results-toolbar'}, h('h2', {className: 'dss-results-title'}, t('results')),
                 h('div', {className: 'dss-display-options'},
-                  !scope && h('div', {className: 'dss-views', role: 'group', 'aria-label': t('view')},
+                  sessionIds.length !== 1 && h('div', {className: 'dss-views', role: 'group', 'aria-label': t('view')},
                     ...[['timeline', 'timeline'], ['session', 'bySession']].map(([value, label]) => h('button', {key: value, type: 'button', className: 'dss-view', 'aria-pressed': view === value, onClick: () => {stored.view = value; setView(value);}}, h(Glyph, {kind: value === 'timeline' ? 'timeline' : 'folder', size: 13}), t(label)))),
                   h('div', {className: 'dss-views dss-sort', role: 'group', 'aria-label': t('sort')},
                     ...['newest', 'oldest'].map(value => h('button', {key: value, type: 'button', className: 'dss-view', 'aria-pressed': order === value, onClick: () => {stored.order = value; setOrder(value);}}, t(value)))))),
-              h(SessionGroups, {key: scope, request, enabled: tree, revision: version, within}),
+              tree && !enabled && !query.trim() && h(EmptyState),
+               h(SessionGroups, {request, enabled: enabled && tree, revision, within, delay}),
                h('div', {hidden: tree},
-               h('div', {className: 'dss-note dss-muted'}, h('span', {title: scope ? t('events') : t('grouped')}, selected?.title || (scope ? t('unavailable') : t('resultsHint'))), page && h('span', {className: 'dss-result-count'}, `${page.items.length}${Number.isInteger(page.total) ? ` / ${page.total}` : page.nextCursor ? '+' : ''} · ${t('results')}`)),
+               h('div', {className: 'dss-note dss-muted'}, h('span', {title: sessionIds.length === 1 ? t('events') : t('grouped')}, selected?.title || (sessionIds.length === 1 ? t('unavailable') : t('resultsHint'))), page && h('span', {className: 'dss-result-count'}, `${page.items.length}${Number.isInteger(page.total) ? ` / ${page.total}` : page.nextCursor ? '+' : ''} · ${t('results')}`)),
               error && h('div', {className: 'dss-error', role: 'alert'}, h('p', null, error), h('button', {type: 'button', onClick: () => setVersion(v => v + 1)}, t('retry'))),
               page?.warnings?.length > 0 && h('div', {className: 'dss-error', role: 'status'}, `${t('partial')} (${page.warnings.length})`),
               h('div', {'aria-live': 'polite', 'aria-busy': busy},
                 busy && !page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : !query.trim() ? h(EmptyState) : page?.items.length === 0 ? h(EmptyState, {empty: true, pending: Boolean(page.nextCursor)}) : null,
                 h(FuzzyNotice, {page, busy, error}),
-                page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, fallbackTitle: selected?.title, showWorkspace: !workspaceId, within: !scope ? within : undefined})),
+                page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, fallbackTitle: selected?.title, showWorkspace: workspaceIds.length !== 1, within: sessionIds.length !== 1 ? within : undefined})),
                 page?.nextCursor && h('button', {className: 'dss-more', type: 'button', disabled: busy, onClick: more}, busy ? t('loading') : t('more'))))
             )));
         }
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({name: 'sidebar.panellist', id: PANEL, order: -10, label: () => t('title')}, Icon));
         ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: PANEL}, SearchPage));
+        ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({name: 'plugins.bundle.config', key: 'dsh-session-search', locale: NS}, SettingsForm));
       }
     };
   }

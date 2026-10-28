@@ -6,12 +6,13 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.2.3.**
+An independent community plugin, not an official DSH package. **Package version: 1.3.0.**
 
 ## Features
 
-- **All workspaces or one workspace**, with a dependent session picker and workspace labels in all-workspace results (Timeline and By session).
-- **All sessions or one session**, with a title/ID filter and a latest-user-activity-first conversation picker.
+- **All or multiple workspaces and sessions**, with searchable checkbox pickers and a latest-user-activity-first conversation list. Workspace and session scopes intersect; empty selection means all.
+- **Message-time filters**: Today, Last 24 hours, Last 7 days, This month, or custom local calendar dates.
+- Profile-persistent **Live / Enter or Search** search timing, configurable on the plugin's settings page.
 - VS Code-style **Aa (Match Case)**, **ab (Whole Word)** and **.* (Regular Expression)** toggles, combinable with one another.
 - Optional **Typo-tolerant** and **Subsequence** fuzzy modes alongside default **Exact** matching.
 - **Timeline** results or collapsible **By session** groups with complete matching-message counts.
@@ -57,15 +58,15 @@ This is tool input, not a shell command. Replace the target with the actual abso
 
 ## Usage
 
-1. Click the sidebar magnifying glass or press **Ctrl+F / ⌘F**. Type to search after a short debounce, or press Enter.
-2. **All workspaces** is the default. Select a workspace to restrict both the session dropdown and search; changing workspace clears the selected session and the title/ID filter. **Ungrouped / no workspace** keeps conversations outside registered workspaces searchable. In all-workspace scope, results and session choices show workspace names; hover a workspace label to see its path.
-3. Keep **All sessions**, select a conversation, or click **Search this session** on a result. Filter the picker by title or ID. It shows whole conversations, latest user activity first; forks and Ungrouped conversations remain valid choices, and unnamed conversations use a readable fallback title.
-4. Adjust matching and scope options. **Final model replies only** starts on; **Include subagent conversations** and **Include archived sessions** start off.
+1. Click the sidebar magnifying glass or press **Ctrl+F / ⌘F**. By default, typing searches after a 300 ms debounce. Under **Plugins → Session Search**, set **When to search → Only on Enter / Search** and Save to require explicit submission. In that mode, text and filter changes wait together; stale outcomes are hidden until you submit.
+2. **All workspaces** is the default. Open the workspace picker to select one or more workspaces; changing selection clears selected sessions. **Clear selection (all)** restores all-workspace scope. **Ungrouped / no workspace** includes conversations outside registered workspaces. Session choices and cross-workspace results show workspace names; hover a label to see its path.
+3. Keep **All sessions**, select multiple conversations using checkboxes, or click **Search this session** on a result. Filter picker options by title or ID; **Select all listed** adds the currently filtered choices. Each choice is a whole conversation, latest user activity first. Forks and unnamed conversations remain available. Workspace and session selections intersect.
+4. Adjust matching, scope and **Message time** options. Presets include Today, Last 24 hours, Last 7 days and This month. Custom start/end dates use your browser's local timezone; an end date includes that entire calendar day. Either bound may be omitted. Time uses individual message timestamps, not session activity, and relative windows stay fixed while loading more. **Final model replies only** starts on; subagents and archived sessions start off.
 5. Choose result order and, for all-session scope, **Timeline / By session**. Groups are ordered by their newest matching message, or oldest matching message when reversed. A message counts once even when the query occurs repeatedly in it.
 6. Expand groups and use **Load more results / Load more sessions** (40 entries per page). Group counts include all matching events, not just loaded pages.
 7. Click **Refresh sessions** after activity, rename, deletion or archival elsewhere. **Open conversation** navigates to an unarchived conversation, but cannot scroll to the exact matching event. Restore archived sessions in DSH's sidebar/archive manager before opening; search never restores them.
 
-Escape or the close button returns to the conversation. Query/options survive while the client module stays loaded; loaded pages and expansion state survive view switches while the panel stays mounted. These are not permanent settings across application restarts. For native browser page-find while the plugin owns Ctrl+F/⌘F, use the browser menu.
+Escape or the close button returns to the conversation. Query/options survive while the client module stays loaded; loaded pages and expansion state survive view switches while the panel stays mounted. These are not permanent settings across application restarts; the saved search-timing preference is profile-persistent. For native browser page-find while the plugin owns Ctrl+F/⌘F, use the browser menu.
 
 ## Matching rules and searchable content
 
@@ -105,7 +106,9 @@ Every eligible session is scanned before pagination so chronological ordering an
 
 `workspaceId` restricts all three actions to one workspace; omit it for all workspaces. Discover IDs from the `sessions` response's `workspaces` catalog, including `__ungrouped__`. Responses include workspace scope metadata, and each session, hit and group carries `workspaceId`, `workspaceTitle` and `workspacePath`. An unknown workspace or a session outside the selected workspace is rejected instead of broadening the search. Registered sidebar membership takes priority; an exact, unambiguous cwd-root match is the fallback. Ambiguous or unmatched conversations remain Ungrouped; subagents inherit their parent's workspace. Continuation cursors bind the workspace scope.
 
-Options: `query`, optional `workspaceId` and `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord`, `useRegex` and `fuzzy` (`off`, `typo` or `subsequence`). Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
+Options: `query`, `workspaceIds` (up to 200 IDs), `sessionIds` (up to 1,000 IDs), `after` / `before` (inclusive/exclusive Unix epoch milliseconds), `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord`, `useRegex` and `fuzzy` (`off`, `typo` or `subsequence`). Empty/omitted arrays mean all; selections are OR within a list and AND between lists. Legacy `workspaceId` / `sessionId` remain supported, but cannot be combined with a nonempty corresponding plural field. Invalid/unavailable selections are errors, never silently broadened. Time bounds exclude messages with missing timestamps, apply before matching/group counts/pagination and do not filter the session catalog. Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
+
+`session_search_settings` reads the saved timing preference when called with `{}`; `{ "searchMode": "live" }` or `{ "searchMode": "submit" }` saves it through the same operation used by the plugin settings UI. This changes configuration, not conversations. The settings HTTP endpoint accepts owner-authenticated GET/POST; writes require JSON and failures are explicit.
 
 ## Privacy and safety
 
@@ -123,7 +126,7 @@ npm pack --dry-run
 
 No dependency installation or build step is needed. Syntax checks and synthetic tests do not establish visual correctness or compatibility with another DSH version. Verify installation, representative searches, keyboard behavior and light/dark rendering in the target application.
 
-Runtime files: [index.js](<index.js>) (Host/HTTP/tool), [search.js](<search.js>) (matching/sorting/grouping/pagination), [session-catalog.js](<session-catalog.js>) (catalog/event extraction), [client.js](<client.js>) (UI/shortcut). Display resources include the bundle patch, localized metadata and an original SVG icon. Historical internal cursor/VM version markers are implementation identifiers, not the public package version.
+Runtime files: [index.js](<index.js>) (Host/HTTP/tool), [settings.js](<settings.js>) (validated, persisted timing preference), [search.js](<search.js>) (matching/sorting/grouping/pagination), [session-catalog.js](<session-catalog.js>) (catalog/event extraction), [client.js](<client.js>) (UI/shortcut). Display resources include the bundle patch, localized metadata and an original SVG icon. Historical internal cursor/VM version markers are implementation identifiers, not the public package version.
 
 [Report an issue](https://github.com/Ziminli/dsh-session-search/issues) with your DSH/runtime version and a minimal synthetic example, not a private conversation export.
 
