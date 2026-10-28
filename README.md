@@ -6,7 +6,7 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.3.3.**
+An independent community plugin, not an official DSH package. **Package version: 1.3.4.**
 
 ## Features
 
@@ -65,6 +65,8 @@ This is tool input, not a shell command. Replace the target with the actual abso
 5. Choose result order and, for all-session scope, **Timeline / By session**. Groups are ordered by their newest matching message, or oldest matching message when reversed. A message counts once even when the query occurs repeatedly in it.
 6. Expand groups and use **Load more results / Load more sessions** (40 entries per page). Group counts include all matching events, not just loaded pages.
 7. Click **Refresh sessions** after activity, rename, deletion or archival elsewhere. **Open conversation** navigates to an unarchived conversation and temporarily highlights matching displayed text in yellow, using that result's exact/regex/fuzzy options. Press **Esc** or the header's **Clear highlights** button to remove it. Restore archived sessions in DSH's sidebar/archive manager before opening; search never restores them.
+
+Highlighted results remain in native Conversation mode so DSH’s selected-session file/link viewers stay available. Only during highlighting, the plugin temporarily replaces the Conversation shell using its own uniquely declared session child and the shared content factory. Clearing highlights, pressing Esc or switching to another session disposes that replacement and restores the resident shell; the resident slot declarations are not recreated.
 
 Conversation highlights are view-only: saved messages, selection/copying and original Chat renderers are unchanged. They apply to currently rendered, non-hidden text blocks, not unloaded history or collapsed content; loading older messages or expanding content refreshes them. The result's time/final-only filters select search outcomes, not which text is painted after opening. Markdown rendering can change whitespace or remove syntax, so highlights follow displayed text and cannot span separate block elements. Opening a result preserves its event sequence and loads history through that event before mounting Chat. A compatibility adapter identifies an exact matching Chat row (never a nearby unrelated event), scrolls that row and its first rendered match into view, and spends the highlight budget on it first. It stops automatic scrolling after user interaction. Shipped Chat has no public selected-event reveal API, so collapsed reasoning/tool content or changed Chat markup can prevent the jump; the header reports this rather than jumping to another message. Expand the relevant content to reveal its highlights. Highlighting uses the browser CSS Custom Highlight API, with an explicit unsupported-browser notice, a 100 ms Host deadline, and bounded scans (500 blocks / 200,000 UTF-16 units / 2,048 ranges); partial coverage and errors are shown in the header. “Highlighting is capped” refers only to this bounded display pass, not missing search results or changed messages. The query is temporary, not saved or added to the URL.
 

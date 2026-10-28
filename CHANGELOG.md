@@ -1,6 +1,15 @@
 # Changelog / 更新日志
 
-Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
+All package version changes must have an entry here before release. Entries are newest first and describe user-visible changes; GitHub releases link back to this file. / 每次插件包版本变更都必须先在此添加条目，按新到旧排列，记录面向用户的变化；GitHub Release 链接回此文件。
+
+Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
+
+## [1.3.4] - 2026-10-28
+
+### Fixed / 修复
+- Keep search-opened highlighted conversations in native Conversation mode instead of a custom main panel. This preserves the selected-session surface used by DSH’s file and link viewers. / 从搜索结果打开高亮对话时保持原生 Conversation 模式，不再切换到自定义主面板，保留 DSH 文件与链接查看器依赖的已选会话界面。
+- Clear highlights and return with `selectPanel(null)`, not the visually equivalent but non-native `"conversation"` panel value. Esc and the clear/back buttons restore normal session-bound actions without reselecting the session in the sidebar. / 清除高亮时使用 `selectPanel(null)`，而非外观相同但非原生模式的 `"conversation"` 值；Esc 及清除/返回按钮恢复正常会话操作，无需重新点击侧边栏会话。
+- Temporarily replace only the Conversation shell while highlighting, with a uniquely owned session child; clearing or navigating to another session disposes the replacement and restores the resident shell without redeclaring its slots. / 仅在高亮期间临时替换对话外壳，并拥有独立的会话子插槽；清除或切换会话时释放替换项、恢复原有外壳，不重复声明原有插槽。
 
 ## [1.3.3] - 2026-10-28
 
@@ -84,13 +93,14 @@ Each historical version is published with its own recovered source snapshot, ann
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
-[1.3.3]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.3
-[1.3.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.2
-[1.3.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.1
-[1.3.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.0
-[1.2.3]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.3
-[1.2.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.2
-[1.2.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.1
-[1.2.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.0
-[1.1.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.1.0
+[1.3.4]: https://github.com/Ziminli/dsh-session-search/compare/v1.3.3...v1.3.4
+[1.3.3]: https://github.com/Ziminli/dsh-session-search/compare/v1.3.2...v1.3.3
+[1.3.2]: https://github.com/Ziminli/dsh-session-search/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/Ziminli/dsh-session-search/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/Ziminli/dsh-session-search/compare/v1.2.3...v1.3.0
+[1.2.2]: https://github.com/Ziminli/dsh-session-search/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/Ziminli/dsh-session-search/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/Ziminli/dsh-session-search/compare/v1.1.0...v1.2.0
+[1.2.3]: https://github.com/Ziminli/dsh-session-search/compare/v1.1.0...v1.2.3
+[1.1.0]: https://github.com/Ziminli/dsh-session-search/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.0.0

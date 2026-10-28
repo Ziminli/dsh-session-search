@@ -46,9 +46,11 @@ assert.equal((await readFile(new URL('cordis.patch.yml', root), 'utf8')).trim(),
 const client = await readFile(new URL('client.js', root), 'utf8');
 assert.match(client, /id: 'dsh-session-search'/);
 assert.doesNotMatch(client, /@local\//);
-// Never replace the resident Conversation or redeclare its already-owned shell.
+// Never change the native main key or redeclare its already-owned shell.
 assert.doesNotMatch(client, /key: 'conversation'|children:\s*\{'main\.conversation'/);
-assert.match(client, /key: HIGHLIGHT_PANEL/);
+assert.doesNotMatch(client, /HIGHLIGHT_PANEL|selectPanel\('conversation'\)/);
+assert.match(client, /name: 'main\.conversation', priority: -10/);
+assert.match(client, /ctx\.layout\.selectPanel\(null\)/);
 assert.match(client, /session-search\.highlight\.body/);
 assert.match(client, /h\(SessionProvider, \{session: opened\.reference\}/);
 assert.match(client, /reference\?\.release\(\)/);

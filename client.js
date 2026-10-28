@@ -351,12 +351,33 @@ window.__ModuleLoader__.load({
         // View-only intent: never saved to session events, storage, or the URL.
         let highlightIntent = null;
         let highlightPanelMounted = false;
-        const HIGHLIGHT_PANEL = 'local-session-search-highlight';
+        let releaseHighlightShell;
+        let observedHighlightIntent = null;
         const highlightListeners = new Set();
-        const setHighlightIntent = value => {highlightIntent = value; for (const listener of highlightListeners) listener();};
+        const setHighlightIntent = value => {
+          if (value !== highlightIntent) observedHighlightIntent = null;
+          highlightIntent = value;
+          // Keep the native main key and its selected-Session surface. Only the
+          // shell is temporarily shadowed; its declarations remain owner-managed.
+          if (value && !releaseHighlightShell) {
+            try {
+              releaseHighlightShell = ctx.slots.inject('main.conversation', function* () {
+                yield ctx.slots.register({name: 'main.conversation', priority: -10,
+                  children: {'session-search.highlight.body': {kind: 'single', scope: 'session'}}}, HighlightedConversation);
+                yield ctx.slots.register({name: 'session-search.highlight.body'}, HighlightedConversationBody);
+              });
+            } catch (error) {highlightIntent = null; throw error;}
+          } else if (!value && releaseHighlightShell) {
+            const release = releaseHighlightShell; releaseHighlightShell = undefined; release();
+          }
+          for (const listener of highlightListeners) listener();
+        };
         const clearHighlights = () => {
+          const wasMounted = highlightPanelMounted;
           setHighlightIntent(null);
-          if (highlightPanelMounted) ctx.layout.selectPanel('conversation');
+          // null is native Conversation mode; the string 'conversation' is a
+          // custom panel and does NOT mount sidebarRight's Session surface.
+          if (wasMounted) ctx.layout.selectPanel(null);
         };
         ctx.effect(() => {
           const escape = event => {
@@ -380,13 +401,21 @@ window.__ModuleLoader__.load({
           .dss-conversation-highlight-control button:hover{background:var(--dsw-alias-bg-layer-2)}
           .dss-conversation-highlight-control button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
         `;
-        // Other main-panel keys have no ambient Session. Retain one explicit
-        // reference, bind it through our own scoped child, and release on exit.
-        function HighlightedConversation({renderSlot, SessionProvider}) {
+        // A temporary native Conversation shell owns only its unique child.
+        // Retain history through the selected event and release on exit.
+        function HighlightedConversation({sessionId, renderSlot, SessionProvider}) {
           React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
           const intent = React.useSyncExternalStore(fn => {highlightListeners.add(fn); return () => highlightListeners.delete(fn);}, () => highlightIntent);
           const [opened, setOpened] = React.useState(null);
           const [error, setError] = React.useState('');
+          React.useEffect(() => {
+            // Ignore the old selection during asynchronous openSession. Once the
+            // requested Session has appeared, navigating away restores the shell
+            // even if the renderer remounts this component for another Session.
+            if (!intent || intent !== highlightIntent) return;
+            if (sessionId === intent.sessionId) observedHighlightIntent = intent;
+            else if (observedHighlightIntent === intent) setHighlightIntent(null);
+          }, [sessionId, intent]);
           React.useEffect(() => {
             highlightPanelMounted = true;
             return () => {highlightPanelMounted = false;};
@@ -404,7 +433,7 @@ window.__ModuleLoader__.load({
             } catch (failure) {setError(failure.message);}
             return () => {cancelled = true; reference?.release();};
           }, [intent]);
-          return opened?.intent === intent && intent ? h(SessionProvider, {session: opened.reference}, renderSlot('session-search.highlight.body', {})) :
+          return opened?.intent === intent && intent?.sessionId === sessionId ? h(SessionProvider, {session: opened.reference}, renderSlot('session-search.highlight.body', {})) :
             h('div', {className: 'dss-page'}, h('style', null, css),
               h('p', {role: error ? 'alert' : 'status'}, error || t('highlighting')),
               h('button', {type: 'button', onClick: clearHighlights}, t('close')));
@@ -586,7 +615,7 @@ window.__ModuleLoader__.load({
           const spec = {query: request.query, matchCase: request.matchCase, wholeWord: request.wholeWord, useRegex: request.useRegex, fuzzy: request.fuzzy};
           const previous = highlightIntent;
           setHighlightIntent({sessionId: hit.sessionId, seq: hit.seq, spec});
-          try {ctx.uiWorkspace.openSession(hit.sessionId); ctx.layout.selectPanel(HIGHLIGHT_PANEL);} catch (error) {setHighlightIntent(previous); throw error;}
+          try {ctx.uiWorkspace.openSession(hit.sessionId); ctx.layout.selectPanel(null);} catch (error) {setHighlightIntent(previous); throw error;}
         }
         // Keep pages mounted across view switches; a switch is presentation only.
         // Request keys isolate query/filter changes, and abort/generation guards
@@ -954,13 +983,8 @@ window.__ModuleLoader__.load({
         }
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({name: 'sidebar.panellist', id: PANEL, order: -10, label: () => t('title')}, Icon));
         ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: PANEL}, SearchPage));
-        // Add an isolated occurrence of the shared Conversation factory. Never
-        // redeclare or replace the shipped main/conversation slot ownership.
-        ctx.slots.inject('main', function* () {
-          yield ctx.slots.register({name: 'main', key: HIGHLIGHT_PANEL,
-            children: {'session-search.highlight.body': {kind: 'single', scope: 'session'}}}, HighlightedConversation);
-          yield ctx.slots.register({name: 'session-search.highlight.body'}, HighlightedConversationBody);
-        });
+        // Highlight shell registration exists only for a live highlight intent;
+        // clearing it restores the untouched resident Conversation entry.
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({name: 'plugins.bundle.config', key: 'dsh-session-search', locale: NS}, SettingsForm));
       }
     };

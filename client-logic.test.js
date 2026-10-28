@@ -2,12 +2,47 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-// Test actual date/identity/loading helpers without loading or emulating React/the DOM.
+// Test actual date/identity/loading and navigation logic without loading or emulating React/the DOM.
 const source = readFileSync(new URL('./client.js', import.meta.url), 'utf8');
 const begin = source.indexOf('    function localDay(');
 const end = source.indexOf('    return {\n      inject:', begin);
 assert.ok(begin > 0 && end > begin);
 const {localDay, timeBounds, selectedChatNodeKeys, loadSelectedMessage} = Function(`${source.slice(begin, end)}; return {localDay, timeBounds, selectedChatNodeKeys, loadSelectedMessage};`)();
+
+// Exercise the actual navigation operations with service spies, not a rendered UI.
+const navigationStart = source.indexOf('        function openHighlightedConversation(');
+const navigationEnd = source.indexOf('        // Keep pages mounted', navigationStart);
+assert.ok(navigationStart > 0 && navigationEnd > navigationStart);
+const makeNavigation = Function('ctx', 'setHighlightIntent', 'getIntent', `${source.slice(navigationStart, navigationEnd).replace('const previous = highlightIntent;', 'const previous = getIntent();')}; return openHighlightedConversation;`);
+
+test('opening a highlighted result preserves native Conversation mode and matching options', () => {
+  const calls = [];
+  let intent = null;
+  const navigate = makeNavigation({uiWorkspace: {openSession: id => calls.push(['open', id])}, layout: {selectPanel: id => calls.push(['panel', id])}}, value => {intent = value;}, () => intent);
+  navigate({sessionId: 'selected-session', seq: 152}, {query: 'market', fuzzy: 'typo', matchCase: true, wholeWord: false, useRegex: false});
+  assert.deepEqual(calls, [['open', 'selected-session'], ['panel', null]]);
+  assert.deepEqual(intent, {sessionId: 'selected-session', seq: 152, spec: {query: 'market', fuzzy: 'typo', matchCase: true, wholeWord: false, useRegex: false}});
+});
+
+test('synchronous native-navigation failure restores the previous highlight intent', () => {
+  const previous = {sessionId: 'previous'};
+  let intent = previous;
+  const navigate = makeNavigation({uiWorkspace: {openSession: () => {throw new Error('navigation unavailable');}}, layout: {selectPanel: () => assert.fail('No panel change after failure')}}, value => {intent = value;}, () => intent);
+  assert.throws(() => navigate({sessionId: 'next', seq: 9}, {query: 'market'}), /navigation unavailable/);
+  assert.equal(intent, previous);
+});
+
+test('clearing highlights restores null native mode, never the conversation string panel', () => {
+  const start = source.indexOf('        const clearHighlights = () => {');
+  const end = source.indexOf('        ctx.effect(', start);
+  const clearCode = source.slice(start, end);
+  for (const mounted of [false, true]) {
+    const calls = [];
+    const clear = Function('ctx', 'setHighlightIntent', 'highlightPanelMounted', `${clearCode}; return clearHighlights;`)({layout: {selectPanel: id => calls.push(['panel', id])}}, value => calls.push(['intent', value]), mounted);
+    clear();
+    assert.deepEqual(calls, mounted ? [['intent', null], ['panel', null]] : [['intent', null]]);
+  }
+});
 
 test('custom calendar dates validate, allow open bounds and include the entire end day', () => {
   assert.equal(localDay('2026-02-30'), NaN);
