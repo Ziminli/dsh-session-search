@@ -4,7 +4,7 @@ English | [简体中文](<README.zh-CN.md>)
 
 Find text across your DeepSeek Harness (DSH) conversation history—across all sessions or within one conversation. Open the search panel from the sidebar or with **Ctrl+F / ⌘F**.
 
-An independent community plugin, not an official DSH package. **Package version: 1.2.0.**
+An independent community plugin, not an official DSH package. **Package version: 1.2.1.**
 
 ## Features
 
@@ -78,6 +78,8 @@ All toggles start off: punctuation is literal, and whitespace between query term
 
 Use **Text matching → Typo-tolerant / Subsequence**; **Exact** stays the default. Choosing a fuzzy mode turns Regex off; turning Regex on restores Exact. The HTTP/tool API rejects requests combining `useRegex: true` with a non-`off` `fuzzy` value.
 
+When a fuzzy search has results but no exact matches anywhere in the selected scope, a notice above the outcomes says **“No exact matches found. Below are the fuzzy matches.”** Exact detection respects case, whole-word and scope/content settings and scans complete messages before pagination. The notice is suppressed while loading, on errors or incomplete reads, and when no fuzzy results exist. A horizontal divider separates settings/explanations from results in both views.
+
 - **Typo-tolerant**: `wrokspace` or `workspce` finds `workspace`. Compares complete Unicode letter/number/underscore words using insertion, deletion, substitution and adjacent transposition (optimal string alignment). Query words of 1–3 Unicode characters allow 0 edits, 4–7 allow 1, and 8+ allow 2. The matched word is highlighted.
 - **Subsequence**: `wrkspc` finds `workspace`. Characters stay in order **inside a single word**, not across arbitrary message text; highlights mark the selected characters. Candidate words may have at most `4 × query-word length + 8` Unicode characters to limit noisy matches.
 - Multiple query words form a **contiguous phrase**, in query order, with flexible whitespace. Punctuation stays literal. Words are maximal Unicode letter/number/underscore runs, not language-aware segmentation; fuzzy search is not semantic or synonym search.
@@ -127,4 +129,4 @@ Runtime files: [index.js](<index.js>) (Host/HTTP/tool), [search.js](<search.js>)
 [MIT](<LICENSE>) © 2026 Zimin Li. The included original SVG icon is covered by the same license.
 
 
-[Changelog / 更新日志](https://github.com/Ziminli/dsh-session-search/blob/v1.2.0/CHANGELOG.md)
+[Changelog / 更新日志](https://github.com/Ziminli/dsh-session-search/blob/v1.2.1/CHANGELOG.md)

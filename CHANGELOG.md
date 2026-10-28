@@ -2,6 +2,13 @@
 
 Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
 
+## 1.2.1 - 2026-10-28
+
+### Added / 新增
+- Show **“No exact matches found. Below are the fuzzy matches.”** only when a fuzzy search has results and no exact match exists anywhere in the selected scope. / 仅在模糊搜索有结果且整个所选范围没有精确匹配时提示**“未找到精确匹配。以下为模糊匹配结果。”**
+- Compute exact-match presence from full eligible messages before pagination, respecting case, whole-word, scope and content settings; suppress the notice during loading, errors or incomplete reads. / 分页前检查符合范围的完整消息，遵循大小写、全字、范围和内容设置；加载中、出错或读取不完整时不显示提示。
+- Separate settings/explanations from outcomes with a horizontal divider in both result views. / 两种结果视图都以水平分隔线区分设置说明与结果。
+
 ## 1.2.0 - 2026-10-28
 
 ### Added / 新增
@@ -26,6 +33,7 @@ Each historical version is published with its own recovered source snapshot, ann
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
+[1.2.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.1
 [1.2.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.0.0

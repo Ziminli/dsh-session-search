@@ -320,6 +320,128 @@ for (const fuzzy of ['typo', 'subsequence']) {
   });
 }
 
+for (const fuzzy of ['typo', 'subsequence']) {
+  const candidate = fuzzy === 'typo' ? 'needel' : 'nXeXeXdXlXe';
+  test(`${fuzzy} exact-presence metadata distinguishes zero, fuzzy-only, exact and mixed corpora`, async () => {
+    for (const action of ['search', 'groups']) {
+      for (const [values, expected, count] of [[[], false, 0], [['unrelated'], false, 0], [[candidate], false, 1], [['needle'], true, 1], [[candidate, 'needle'], true, 2]]) {
+        const f = fixture(undefined, {s: values.flatMap((value, i) => turn(i + 1, value))});
+        const result = await search(f, {action, query: 'needle', fuzzy});
+        assert.equal(result.hasExactMatches, expected);
+        assert.equal(action === 'groups' ? result.totalMatches : result.total, count);
+        assert.equal(result.hasExactMatches, (await search(f, {query: 'needle'})).total > 0);
+      }
+      // A literal substring can exist outside the candidate-word length ceiling,
+      // so a fuzzy result set (even an empty one) cannot establish exact absence.
+      const exactOnly = await sample(`${'x'.repeat(60)}needle`, {action, query: 'needle', fuzzy});
+      assert.equal(exactOnly.total, 0);
+      assert.equal(exactOnly.hasExactMatches, true);
+    }
+    assert.equal((await sample('needle', {query: 'needle'})).hasExactMatches, undefined);
+    assert.equal((await search(fixture(), {action: 'sessions', fuzzy})).hasExactMatches, undefined);
+  });
+
+  test(`${fuzzy} exact presence uses full text beyond fuzzy snippet and highlight caps`, async () => {
+    const suffix = `${' '.repeat(800)}${'x'.repeat(60)}needle`;
+    for (const value of [`${candidate}${suffix}`, `${`${candidate} `.repeat(MAX_RANGES + 20)}${suffix}`]) {
+      const result = await sample(value, {query: 'needle', fuzzy});
+      assert.equal(result.total, 1);
+      assert.equal(result.hasExactMatches, true);
+      assert.ok(!result.items[0].snippet.includes('needle'));
+    }
+  });
+
+  test(`${fuzzy} exact presence shares literal escaping, whitespace, case and Unicode whole-word semantics with off`, async () => {
+    for (const [query, value, flags] of [
+      ['needle.* planet', 'NEEDLE.*\n\t planet', {}],
+      ['needle.* planet', 'NEEDLE.*\n\t planet', {matchCase: true}],
+      ['needle.* planet', 'needleZZ planet', {}],
+      ['needle', 'xneedley', {}], ['needle', 'xneedley', {wholeWord: true}],
+      ['needle', '𐐀needle٣', {wholeWord: true}], ['needle', '😀needle😀', {wholeWord: true}],
+      ['(needle)', 'x(needle)y', {wholeWord: true}], ['(needle)', '😀(needle)😀', {wholeWord: true}],
+      ['kelvin sample', 'KELVIN\n ſAMPLE', {}], ['i', 'İ', {}],
+    ]) {
+      const input = {query, ...flags};
+      const exact = await sample(value, {...input, fuzzy: 'off'});
+      const result = await sample(value, {...input, fuzzy});
+      assert.equal(result.hasExactMatches, exact.total > 0, JSON.stringify({query, value, flags}));
+    }
+  });
+
+  test(`${fuzzy} exact presence respects workspace/session/archive/subagent and content eligibility`, async () => {
+    const rows = [row('parent', 1), row('other', 2), row('archive', 3), row('child', 4, {origin: 'subagent', parentSessionId: 'parent'}), row('loose', 5)];
+    const logs = {parent: turn(1, candidate), other: turn(1, 'needle'), archive: turn(1, 'needle'), child: turn(1, 'needle'), cold: turn(1, 'needle'), loose: turn(1, candidate)};
+    const f = fixture(rows, logs, ['archive', 'cold'], [workspace('one', ['parent', 'archive']), workspace('two', ['other'])]);
+    f.sessionQuery.listSessions = async () => [{header: {id: 'cold', createdAt: 6, origin: 'subagent', parentSession: 'child'}}];
+    const base = {query: 'needle', fuzzy};
+    for (const action of ['search', 'groups']) for (const [scope, expected] of [
+      [{}, true], [{workspaceId: 'one'}, false], [{workspaceId: 'two'}, true], [{workspaceId: UNGROUPED_WORKSPACE_ID}, false],
+      [{sessionId: 'parent'}, false], [{sessionId: 'other'}, true],
+      [{workspaceId: 'one', includeArchived: true}, true], [{workspaceId: 'one', includeSubagents: true}, true],
+      [{sessionId: 'cold', includeArchived: true, includeSubagents: true}, true],
+    ]) {
+      const result = await search(f, {...base, action, ...scope});
+      const exact = await search(f, {...base, fuzzy: 'off', action: 'search', ...scope});
+      assert.equal(result.hasExactMatches, expected);
+      assert.equal(result.hasExactMatches, exact.total > 0);
+    }
+    const events = [...turn(1, candidate), event('user/message', 20, {content: [text('needle')]}),
+      event('turn/start', 21, {turn: 2}), event('assistant/message', 22, {turn: 2, message: {content: [text('needle')]}})];
+    const contentFixture = fixture(undefined, {s: events});
+    for (const action of ['search', 'groups']) {
+      assert.equal((await search(contentFixture, {...base, action, content: 'final'})).hasExactMatches, false, 'unfinished turns and user input are not final replies');
+      assert.equal((await search(contentFixture, {...base, action, content: 'all'})).hasExactMatches, true);
+    }
+    const split = fixture(undefined, {s: [...turn(1, 'needle'), ...turn(2, 'planet')]});
+    assert.equal((await search(split, {query: 'needle planet', fuzzy})).hasExactMatches, false, 'presence cannot join documents');
+  });
+
+  test(`${fuzzy} exact presence aggregates before pagination and invalidates cursors when only hidden exact text changes`, async () => {
+    const rows = Array.from({length: LIMIT + 1}, (_, i) => row(`s${String(i).padStart(3, '0')}`, i));
+    const hidden = `${candidate}${' '.repeat(800)}${'x'.repeat(60)}`;
+    const logs = Object.fromEntries(rows.map((r, i) => [r.sessionId, turn(1, i ? candidate : `${hidden}xxxxxx`, i)]));
+    const f = fixture(rows, logs);
+    for (const action of ['search', 'groups']) {
+      const input = {action, query: 'needle', fuzzy};
+      const before = await search(f, input);
+      assert.ok(before.nextCursor);
+      assert.equal(before.hasExactMatches, false);
+      logs.s000[1].data.message.content[0].text = `${hidden}needle`;
+      const after = await search(f, input);
+      assert.deepEqual(after.items, before.items, 'fuzzy first page stays identical');
+      assert.equal(after.hasExactMatches, true, 'exact text belongs to a document beyond the first page');
+      assert.ok(!ids(after).includes('s000'));
+      await assert.rejects(search(f, {...input, cursor: before.nextCursor}), /History changed/);
+      const last = await search(f, {...input, cursor: after.nextCursor});
+      assert.equal(last.hasExactMatches, true);
+      assert.equal(last.items.length, 1);
+      if (action === 'search') assert.ok(!last.items[0].snippet.includes('needle'));
+      logs.s000[1].data.message.content[0].text = `${hidden}xxxxxx`;
+      await assert.rejects(search(f, {...input, cursor: after.nextCursor}), /History changed/);
+    }
+  });
+
+  test(`${fuzzy} HTTP/tool/service metadata agree for exact-only, mixed, zero and warning-bearing responses`, async () => {
+    for (const value of ['unrelated', candidate, 'needle', `${candidate} needle`, `${'x'.repeat(60)}needle`]) {
+      const {route, tool, service} = routeFixture(fixture(undefined, {s: turn(1, value)}));
+      for (const action of ['search', 'groups']) {
+        const input = {action, query: 'needle', fuzzy};
+        const response = await request(route, input);
+        assert.equal(response.code, 200);
+        assert.equal(typeof response.body.hasExactMatches, 'boolean');
+        assert.deepEqual(response.body, await tool.execute(input, {signal: new AbortController().signal}));
+        assert.deepEqual(response.body, await service.search(input));
+      }
+    }
+    const {route, tool} = routeFixture(fixture([row('good', 1), row('unreadable', 2)], {good: turn(1, candidate), unreadable: new Error('History unavailable')}));
+    const input = {query: 'needle', fuzzy};
+    const response = await request(route, input);
+    assert.equal(response.body.hasExactMatches, false);
+    assert.deepEqual(response.body.warnings, [{sessionId: 'unreadable', error: 'History unavailable'}], 'warnings must remain visible so clients cannot claim global exact absence');
+    assert.deepEqual(response.body, await tool.execute(input, {signal: new AbortController().signal}));
+  });
+}
+
 test('invalid fuzzy modes and regex conflicts reject before any service read, including catalog actions', async () => {
   for (const action of ['search', 'groups', 'sessions']) {
     for (const fuzzy of ['', 'near', 'TYPO', null, false, 1, {}, []]) {

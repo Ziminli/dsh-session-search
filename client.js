@@ -43,6 +43,7 @@ window.__ModuleLoader__.load({
       matchCase: 'Match Case', wholeWord: 'Match Whole Word', useRegex: 'Use Regular Expression', searchModes: 'Search modes',
       regexHint: 'Regular expressions use JavaScript Unicode syntax, without / delimiters. Complex patterns may time out.',
       fuzzy: 'Text matching', fuzzyOff: 'Exact', fuzzyTypo: 'Typo-tolerant', fuzzySubsequence: 'Subsequence',
+      fuzzyOnly: 'No exact matches found. Below are the fuzzy matches.',
       fuzzyOffHint: 'Exact text by default. Select a fuzzy mode for spelling mistakes or abbreviations. Regex and fuzzy modes are mutually exclusive.',
       fuzzyTypoHint: 'Match complete words with small spelling mistakes, including swapped letters: wrokspace → workspace. Words of 1–3 characters require an exact match; 4–7 allow 1 edit; 8+ allow 2. Max 128 characters / 16 words.',
       fuzzySubsequenceHint: 'Match ordered letters inside each word: wrkspc → workspace. Words must stay together in query order; matches cannot span unrelated text. Candidate words are limited to 4× query-word length + 8. Max 128 characters / 16 words.',
@@ -63,6 +64,7 @@ window.__ModuleLoader__.load({
       matchCase: '区分大小写', wholeWord: '全字匹配', useRegex: '使用正则表达式', searchModes: '匹配模式',
       regexHint: '正则表达式采用 JavaScript Unicode 语法，不需要 / 分隔符。复杂表达式可能超时。',
       fuzzy: '文本匹配', fuzzyOff: '精确', fuzzyTypo: '拼写容错', fuzzySubsequence: '子序列',
+      fuzzyOnly: '未找到精确匹配。以下为模糊匹配结果。',
       fuzzyOffHint: '默认精确匹配。选择模糊模式可容忍拼写错误或使用缩写。正则表达式与模糊模式互斥。',
       fuzzyTypoHint: '匹配有少量拼写错误的完整词，包括相邻字母交换：wrokspace → workspace。1–3 字符的词需精确匹配，4–7 字符允许 1 次编辑，8 字符以上允许 2 次。查询最多 128 字符 / 16 个词。',
       fuzzySubsequenceHint: '在每个词内依序匹配字符：wrkspc → workspace。各词必须按查询顺序连续出现，不跨无关文本匹配。候选词长度不超过查询词长度的 4 倍加 8。查询最多 128 字符 / 16 个词。',
@@ -89,6 +91,7 @@ window.__ModuleLoader__.load({
     .dss-page .dss-primary{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
     .dss-scope{display:grid;grid-template-columns:auto minmax(140px,1fr) minmax(150px,2fr);gap:10px;align-items:center;margin-bottom:10px}.dss-scope select{max-width:100%;width:100%}.dss-scope label{font-weight:500}
     .dss-note{margin:18px 0 12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.dss-message{padding:32px 20px;text-align:center;border:1px dashed var(--dsw-alias-border-l2);border-radius:12px;margin-top:24px;line-height:1.7;color:var(--dsw-alias-label-secondary)}
+    .dss-divider{border:0;border-top:1px solid var(--dsw-alias-border-l2);margin:24px 0 18px;width:100%}.dss-page .dss-fuzzy-notice{padding:12px 16px;margin:0 0 16px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.6}
     .dss-error{color:var(--dsw-alias-state-error-primary);padding:14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;margin:14px 0;overflow-wrap:anywhere}
     .dss-hit{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);border-radius:12px;margin-bottom:12px;padding:16px 18px}.dss-hit h2{font-size:15px;margin:0 0 5px;font-weight:600;overflow-wrap:anywhere}
     .dss-meta{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px}.dss-id{font-family:monospace;overflow-wrap:anywhere;font-size:11px}
@@ -202,6 +205,13 @@ window.__ModuleLoader__.load({
           }
           return {...value, more, refresh: () => {cache.current = null; setRetry(v => v + 1);}};
         }
+        function FuzzyNotice({page, busy, error}) {
+          // This is scope-wide Host metadata, not a guess from the loaded snippets.
+          // Never claim absence while loading, on failure, or with unreadable sessions.
+          if (busy || error || !page || !['typo', 'subsequence'].includes(page.fuzzy) ||
+              page.hasExactMatches !== false || !page.items.length || page.warnings?.length) return null;
+          return h('p', {className: 'dss-fuzzy-notice', role: 'status'}, t('fuzzyOnly'));
+        }
         function WorkspaceLabel({hit}) {
           const name = hit.workspaceId === '__ungrouped__' ? t('ungroupedWorkspace') : hit.workspaceTitle || hit.workspacePath || hit.workspaceId || t('ungroupedWorkspace');
           return h('span', {className: 'dss-badge', title: hit.workspacePath || name}, `${t('workspace')}: ${name}`);
@@ -254,6 +264,7 @@ window.__ModuleLoader__.load({
             result.page?.warnings?.length > 0 && h('p', {className: 'dss-error', role: 'status'}, `${t('partial')} (${result.page.warnings.length})`),
             h('div', {'aria-live': 'polite', 'aria-busy': result.busy},
               !request.query.trim() ? h('div', {className: 'dss-message'}, h(Icon, {size: 28}), h('p', null, t('start'))) : result.busy && !result.page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : result.page?.items.length === 0 ? h('div', {className: 'dss-message'}, t('empty')) : null,
+              h(FuzzyNotice, result),
               result.page?.items.map(group => h(SessionGroup, {key: `${key}:${group.sessionId}`, group, request, enabled, revision, within})),
               result.page?.nextCursor && h('button', {type: 'button', className: 'dss-more', disabled: result.busy, onClick: result.more}, result.busy ? t('loading') : t('moreSessions'))));
         }
@@ -379,6 +390,7 @@ window.__ModuleLoader__.load({
               useRegex && h('p', {className: 'dss-muted'}, t('regexHint')),
               catalogState === 'loading' && h('p', {className: 'dss-muted', role: 'status'}, t('loadingSessions')),
               catalogState === 'error' && h('div', {className: 'dss-error', role: 'alert'}, t('catalogError'), ' ', h('button', {type: 'button', onClick: () => setCatalogVersion(v => v + 1)}, t('retry'))),
+              h('hr', {className: 'dss-divider'}),
               h(SessionGroups, {key: scope, request, enabled: tree, revision: version, within}),
                h('div', {hidden: tree},
                h('div', {className: 'dss-note dss-muted'}, h('span', null, scope ? t('events') : t('grouped')), page && h('span', null, `${page.items.length}${Number.isInteger(page.total) ? ` / ${page.total}` : page.nextCursor ? '+' : ''} · ${t('results')}`)),
@@ -386,6 +398,7 @@ window.__ModuleLoader__.load({
               page?.warnings?.length > 0 && h('div', {className: 'dss-error', role: 'status'}, `${t('partial')} (${page.warnings.length})`),
               h('div', {'aria-live': 'polite', 'aria-busy': busy},
                 busy && !page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : !query.trim() ? h('div', {className: 'dss-message'}, h(Icon, {size: 28}), h('p', null, t('start'))) : page?.items.length === 0 ? h('div', {className: 'dss-message'}, t(page.nextCursor ? 'pending' : 'empty')) : null,
+                h(FuzzyNotice, {page, busy, error}),
                 page?.items.map(hit => h('article', {className: 'dss-hit', key: `${hit.sessionId}:${hit.seq}`},
                   h('div', {className: 'dss-hit-heading'}, h('h2', null, hit.title || selected?.title || t('untitled')),
                     !workspaceId && h(WorkspaceLabel, {hit}),

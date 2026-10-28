@@ -25,10 +25,10 @@ export class SearchMatchError extends Error {
   constructor(message, code) {super(message); this.name = 'SearchMatchError'; this.code = code;}
 }
 
-// This entire function runs INSIDE the timed VM, including compilation,
+// Pattern compilation and both matchers run INSIDE the timed VM, including
 // iteration, snippet construction and serialization. User input is data only;
 // it is never interpolated into JavaScript source or evaluated as JavaScript.
-function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
+function compileMatchPattern(spec) {
   const source = spec.useRegex ? spec.query : spec.query.trim().split(/\s+/u)
     .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
   // Noncapturing wrapping preserves numbered backreferences. Putting boundaries
@@ -38,7 +38,10 @@ function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
   // become valid by accidentally closing our whole-word wrapper.
   const rawPattern = new RegExp(source, flags);
   const bounded = spec.wholeWord ? `(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])` : source;
-  const pattern = spec.wholeWord ? new RegExp(bounded, flags) : rawPattern;
+  return spec.wholeWord ? new RegExp(bounded, flags) : rawPattern;
+}
+function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
+  const pattern = compileMatchPattern(spec);
   const hits = [];
   for (const doc of documents) {
     const text = doc.text;
@@ -78,10 +81,17 @@ function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
   }
   return JSON.stringify(hits);
 }
-// A separate branch deliberately leaves the established literal/regex matcher
-// above untouched. All helpers, candidate scans, DP, and snippet work below run
-// within the SAME per-session VM deadline; none run in the service/catalog loop.
+// All helpers, the full-document literal presence scan, candidate scans, DP,
+// and snippet work run within the SAME per-session VM deadline; none run in the
+// service/catalog loop. Literal presence is independent of fuzzy candidates:
+// exact substrings can exist even when a whole candidate word is not a fuzzy hit.
 function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
+  const exactPattern = compileMatchPattern(spec);
+  let hasExactMatches = false;
+  for (const doc of documents) {
+    exactPattern.lastIndex = 0;
+    if (exactPattern.test(doc.text)) {hasExactMatches = true; break;}
+  }
   const wordCharacter = /[\p{L}\p{N}_]/u;
   const wordAt = /[\p{L}\p{N}_]+/uy;
   const spaceAt = /\s+/uy;
@@ -236,10 +246,10 @@ function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
       snippet: prefix + text.slice(start, end) + (end < text.length ? '…' : ''), ranges,
       ...(rangesTruncated ? {rangesTruncated: true} : {})});
   }
-  return JSON.stringify(hits);
+  return JSON.stringify({hits, hasExactMatches});
 }
-const matchingScript = new Script(`(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-matcher-v1.7.vm.js'});
-const fuzzyMatchingScript = new Script(`(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-fuzzy-v1.7.vm.js'});
+const matchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-matcher-v1.7.vm.js'});
+const fuzzyMatchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-fuzzy-v1.7.vm.js'});
 function matchDocuments(documents, spec) {
   try {
     // One deadline covers the complete per-session document list, NOT one
@@ -299,13 +309,17 @@ export async function search(services, input, signal = new AbortController().sig
   const scope = {scope: sessionId || 'all', workspaceId: workspaceId ?? null, workspaceTitle: workspace?.title || '', workspacePath: workspace?.path || '', workspaces};
   if (action === 'sessions') return {...scope, ...options, items: eligible};
   const items = [], warnings = [];
+  let hasExactMatches = false;
   for (const row of eligible) {
     signal.throwIfAborted();
     try {
       const observation = await services.sessionQuery.observeSession(row.sessionId, {signal, projectionMode: 'none'});
       try {
         const project = content === 'final' ? finalDocuments : processDocuments;
-        for (const hit of matchDocuments(project(observation.events, row.sessionId), spec)) items.push({...row, ...hit});
+        const matched = matchDocuments(project(observation.events, row.sessionId), spec);
+        const hits = fuzzy === 'off' ? matched : matched.hits;
+        if (fuzzy !== 'off' && matched.hasExactMatches) hasExactMatches = true;
+        for (const hit of hits) items.push({...row, ...hit});
       } finally {observation[Symbol.dispose]();}
       signal.throwIfAborted();
     } catch (error) {
@@ -321,7 +335,8 @@ export async function search(services, input, signal = new AbortController().sig
   items.sort((a, b) => (order === 'newest' ? b.time - a.time : a.time - b.time) || a.sessionId.localeCompare(b.sessionId) || (order === 'newest' ? b.seq - a.seq : a.seq - b.seq));
   // Bind group cursors to the full hits too: changing a non-extremal matching
   // reply must invalidate a page even when its group's count/time is unchanged.
-  const version = digest([items, warnings]);
+  const exactMetadata = fuzzy === 'off' ? {} : {hasExactMatches};
+  const version = digest(fuzzy === 'off' ? [items, warnings] : [items, warnings, exactMetadata]);
   if (cursor && cursor.version !== version) throw new Error('History changed. Search again to refresh results.');
   let results = items;
   if (action === 'groups') {
@@ -342,7 +357,7 @@ export async function search(services, input, signal = new AbortController().sig
   const offset = cursor?.offset ?? 0;
   if (offset > results.length) throw new Error('Invalid search cursor. Search again.');
   const end = offset + LIMIT;
-  return {...scope, query, ...options, items: results.slice(offset, end), total: results.length, scanned: eligible.length,
+  return {...scope, query, ...options, ...exactMetadata, items: results.slice(offset, end), total: results.length, scanned: eligible.length,
     ...(action === 'groups' ? {totalMatches: items.length} : {}),
     ...(warnings.length ? {warnings} : {}),
     ...(end < results.length ? {nextCursor: Buffer.from(JSON.stringify({key, version, offset: end})).toString('base64url')} : {})};
