@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-search",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Search stored DSH conversation text across all or selected workspaces and sessions, with exact, regular-expression, typo-tolerant or word-internal subsequence matching.",
   "type": "module",
   "license": "MIT",
@@ -37,7 +37,7 @@
   ],
   "scripts": {
     "check": "node tools/check.mjs",
-    "test": "node --test search.test.js fuzzy.test.js filters.test.js settings.test.js client-logic.test.js"
+    "test": "node --test search.test.js fuzzy.test.js filters.test.js settings.test.js client-logic.test.js highlight.test.js"
   },
   "dsh": {
     "bundle": {"patch": "./cordis.patch.yml"},

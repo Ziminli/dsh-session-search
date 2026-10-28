@@ -1,7 +1,22 @@
-import {search} from './search.js';
+import {search, highlightText} from './search.js';
 import {createSettingsOperation, readSettingsBody} from './settings.js';
 export {Config} from './settings.js';
 export const inject = ['sessionQuery', 'sessionController', 'workspaceController', 'connection', 'webServer', 'tools', 'configEditor'];
+const MAX_HIGHLIGHT_BODY_BYTES = 2 * 1024 * 1024;
+async function readHighlightBody(req) {
+  const declared = req.headers['content-length'];
+  if (declared !== undefined && (!/^\d+$/u.test(declared) || Number(declared) > MAX_HIGHLIGHT_BODY_BYTES)) throw new Error('Highlight body exceeds 2 MiB or has invalid Content-Length');
+  let size = 0;
+  const chunks = [];
+  // Do not destroy IncomingMessage (and its socket) on an oversized body:
+  // the handler still owes the caller an honest JSON 400 response.
+  for await (const chunk of req.iterator({destroyOnReturn: false})) {
+    size += Buffer.byteLength(chunk);
+    if (size > MAX_HIGHLIGHT_BODY_BYTES) throw new Error('Highlight body exceeds 2 MiB');
+    chunks.push(Buffer.from(chunk));
+  }
+  try {return JSON.parse(Buffer.concat(chunks).toString('utf8'));} catch {throw new Error('Invalid highlight JSON');}
+}
 export function apply(ctx, config) {
   const operation = (input, signal) => search(ctx, input, signal);
   const settings = createSettingsOperation(ctx, config);
@@ -30,6 +45,24 @@ export function apply(ctx, config) {
     isConcurrencySafe: input => input.searchMode === undefined,
     async execute(input) {return settings(input.searchMode === undefined ? undefined : input);}
   }));
+  ctx.effect(() => ctx.webServer.register({kind: 'exact', path: '/api/local-session-search-highlight', async handler(req, res) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const admission = ctx.connection.admit({headers: req.headers});
+    if ('rejection' in admission) {res.writeHead(admission.rejection); res.end(JSON.stringify({error: 'Authentication required'})); return;}
+    if (admission.peer.principal.kind !== 'owner') {res.writeHead(403); res.end(JSON.stringify({error: 'Owner access required'})); return;}
+    if (req.method !== 'POST') {res.setHeader('Allow', 'POST'); res.writeHead(405); res.end(JSON.stringify({error: 'POST required'})); return;}
+    if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {res.writeHead(415); res.end(JSON.stringify({error: 'JSON content type required'})); return;}
+    try {
+      const input = await readHighlightBody(req);
+      if (res.destroyed) return;
+      const result = highlightText(input);
+      if (!res.destroyed) {res.writeHead(200); res.end(JSON.stringify(result));}
+    } catch (error) {
+      if (!res.destroyed) {res.writeHead(400); res.end(JSON.stringify({error: error instanceof Error ? error.message : String(error), ...(error?.code ? {code: error.code} : {})}));}
+    }
+  }}));
   ctx.effect(() => ctx.webServer.register({kind: 'exact', path: '/api/local-session-search', async handler(req, res) {
     const admission = ctx.connection.admit({headers: req.headers});
     res.setHeader('Cache-Control', 'no-store');

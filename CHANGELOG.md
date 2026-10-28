@@ -2,6 +2,16 @@
 
 Each historical version is published with its own recovered source snapshot, annotated tag, package asset and release notes. Existing v1.2.3 history is preserved; v1.2.0–v1.2.2 are backfilled on a separate history branch. / 各历史版本独立恢复源码快照、标签、安装包与发布说明；保留既有 v1.2.3 历史，v1.2.0–v1.2.2 在独立历史分支补发。
 
+## [1.3.1] - 2026-10-28
+
+### Known issue / 已知问题
+- This historical version redeclares a resident Conversation slot and can prevent the search UI from starting. Fixed in **1.3.2**; **1.3.3** is recommended. / 此历史版本重复声明原有对话插槽，可能导致搜索界面无法启动；已在 **1.3.2** 修复，建议使用 **1.3.3**。
+
+### Added / 新增
+- Opening a search result carries its matching mode into the conversation and temporarily paints matching displayed text yellow. Press **Esc**, or use the header's clear button, to remove the highlights. Saved messages are unchanged. / 从搜索结果打开对话时，沿用匹配模式，将显示文本中的匹配临时标黄。按 **Esc** 或点击标题栏清除按钮即可移除，不修改已保存消息。
+- Reapply highlights as older messages load or collapsed content is expanded; matching stays on the Host under the same hard deadline, including regex and fuzzy modes. / 加载更早消息或展开折叠内容时重新高亮；正则及模糊匹配均在 Host 中受硬超时约束执行。
+- Preserve the original conversation shell, Chat renderers, composer and width controls through a slot-owned wrapper; use CSS Custom Highlights without rewriting message DOM. / 通过插槽拥有的外层保留原有对话布局、Chat 渲染器、输入框及宽度控制，使用 CSS Custom Highlights，不改写消息 DOM。
+
 ## [1.3.0] - 2026-10-28
 
 ### Added / 新增
@@ -60,6 +70,7 @@ Each historical version is published with its own recovered source snapshot, ann
 - Timeline and collapsible session-group views, chronological ordering, highlighted snippets, pagination and conversation navigation. / 提供时间线、可折叠会话分组、时间排序、高亮摘要、分页和对话跳转。
 - English/Chinese UI, exported plugin metadata and icon, MIT license, and a shared read-only agent tool without third-party dependencies or a build step. / 提供中英文界面、导出的插件元信息和图标、MIT 许可证及共享只读代理工具，不依赖第三方包或构建步骤。
 
+[1.3.1]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.3.0
 [1.2.3]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Ziminli/dsh-session-search/releases/tag/v1.2.2

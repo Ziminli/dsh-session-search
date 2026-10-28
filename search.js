@@ -6,6 +6,10 @@ export {catalog, workspaceCatalog, finalDocuments, processDocuments, workspaceSn
 export const MATCH_TIMEOUT_MS = 100;
 export const MAX_SNIPPET = 640;
 export const MAX_RANGES = 64;
+export const MAX_HIGHLIGHT_TEXTS = 500;
+export const MAX_HIGHLIGHT_TEXT = 200000;
+export const MAX_HIGHLIGHT_RANGES = 256;
+export const MAX_HIGHLIGHT_TOTAL_RANGES = 2048;
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function string(value, name, max = 1024) {
   if (typeof value !== 'string' || !value.trim() || value.length > max) throw new Error(`${name} must be nonempty text of at most ${max} characters`);
@@ -64,32 +68,36 @@ function compileMatchPattern(spec) {
   const bounded = spec.wholeWord ? `(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])` : source;
   return spec.wholeWord ? new RegExp(bounded, flags) : rawPattern;
 }
-function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
+function matchDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument) {
   const pattern = compileMatchPattern(spec);
   const hits = [];
+  let totalRanges = 0, truncated = false;
   for (const doc of documents) {
+    if (fullDocument && totalRanges >= fullDocument.maxTotalRanges) {truncated = true; break;}
     const text = doc.text;
     pattern.lastIndex = 0;
     let match = pattern.exec(text);
     if (!match) continue;
-    let start = Math.max(0, match.index - 100);
+    let start = fullDocument ? 0 : Math.max(0, match.index - 100);
     // Keep snippet edges between code points, while offsets remain UTF-16.
     if (start > 0 && /[\uDC00-\uDFFF]/u.test(text[start]) && /[\uD800-\uDBFF]/u.test(text[start - 1])) start--;
-    let end = Math.min(text.length, start + Math.min(maxSnippet - 2, Math.max(360, match[0].length + 140)));
+    let end = fullDocument ? text.length : Math.min(text.length, start + Math.min(maxSnippet - 2, Math.max(360, match[0].length + 140)));
     if (end < text.length && /[\uDC00-\uDFFF]/u.test(text[end]) && /[\uD800-\uDBFF]/u.test(text[end - 1])) end--;
     const prefix = start ? '…' : '';
     const ranges = [];
+    const rangeLimit = fullDocument ? Math.min(maxRanges, fullDocument.maxTotalRanges - totalRanges) : maxRanges;
     let rangesTruncated = false;
     do {
       const from = match.index;
       const to = from + match[0].length;
       if (from > end || (from === end && to !== from)) break;
       if (to >= start) {
+        if (fullDocument && ranges.length >= rangeLimit) {rangesTruncated = true; break;}
         ranges.push({start: Math.max(start, from) - start + prefix.length, end: Math.min(end, to) - start + prefix.length});
         if (to > end) rangesTruncated = true;
       }
       // Only the highlight list is capped; the document itself is still a hit.
-      if (ranges.length >= maxRanges) {rangesTruncated = true; break;}
+      if (!fullDocument && ranges.length >= rangeLimit) {rangesTruncated = true; break;}
       if (!match[0].length) {
         if (pattern.lastIndex >= text.length) break;
         pattern.lastIndex += text.codePointAt(pattern.lastIndex) > 0xffff ? 2 : 1;
@@ -99,20 +107,24 @@ function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
       // anchors, lookbehind/lookahead and whole-word context must stay intact.
       match = pattern.exec(text);
     } while (match);
-    hits.push({seq: doc.seq, time: doc.time, type: doc.type,
+    if (fullDocument) {
+      totalRanges += ranges.length;
+      if (rangesTruncated) truncated = true;
+      hits.push({index: doc.index, ranges, ...(rangesTruncated ? {rangesTruncated: true} : {})});
+    } else hits.push({seq: doc.seq, time: doc.time, type: doc.type,
       snippet: prefix + text.slice(start, end) + (end < text.length ? '…' : ''), ranges,
       ...(rangesTruncated ? {rangesTruncated: true} : {})});
   }
-  return JSON.stringify(hits);
+  return JSON.stringify(fullDocument ? {items: hits, ...(truncated ? {truncated: true} : {})} : hits);
 }
 // All helpers, the full-document literal presence scan, candidate scans, DP,
 // and snippet work run within the SAME per-session VM deadline; none run in the
 // service/catalog loop. Literal presence is independent of fuzzy candidates:
 // exact substrings can exist even when a whole candidate word is not a fuzzy hit.
-function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
+function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument) {
   const exactPattern = compileMatchPattern(spec);
   let hasExactMatches = false;
-  for (const doc of documents) {
+  if (!fullDocument) for (const doc of documents) {
     exactPattern.lastIndex = 0;
     if (exactPattern.test(doc.text)) {hasExactMatches = true; break;}
   }
@@ -230,13 +242,16 @@ function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
     return {start, end: offset, ranges};
   }
   const hits = [];
+  let totalRanges = 0, truncated = false;
   for (const doc of documents) {
+    if (fullDocument && totalRanges >= fullDocument.maxTotalRanges) {truncated = true; break;}
     const text = doc.text;
     // Streaming tokens avoid storing the entire document or searching arbitrary
     // substrings of a candidate word. Punctuation can start at any code point.
     const candidates = /[\p{L}\p{N}_]+|[^\p{L}\p{N}_]/gu;
     let candidate, first, start, end, prefix;
     const ranges = [];
+    const rangeLimit = fullDocument ? Math.min(maxRanges, fullDocument.maxTotalRanges - totalRanges) : maxRanges;
     let rangesTruncated = false;
     while ((candidate = candidates.exec(text))) {
       if (first && candidate.index >= end) break;
@@ -244,9 +259,9 @@ function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
       if (!match) continue;
       if (!first) {
         first = match;
-        start = Math.max(0, match.start - 100);
+        start = fullDocument ? 0 : Math.max(0, match.start - 100);
         if (start > 0 && /[\uDC00-\uDFFF]/u.test(text[start]) && /[\uD800-\uDBFF]/u.test(text[start - 1])) start--;
-        end = Math.min(text.length, start + Math.min(maxSnippet - 2, Math.max(360, match.end - match.start + 140)));
+        end = fullDocument ? text.length : Math.min(text.length, start + Math.min(maxSnippet - 2, Math.max(360, match.end - match.start + 140)));
         if (end < text.length && /[\uDC00-\uDFFF]/u.test(text[end]) && /[\uD800-\uDBFF]/u.test(text[end - 1])) end--;
         prefix = start ? '…' : '';
       }
@@ -259,35 +274,76 @@ function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
         const to = Math.min(end, range.end) - start + prefix.length;
         const last = ranges[ranges.length - 1];
         if (last && last.end === from) last.end = to;
-        else if (ranges.length < maxRanges) ranges.push({start: from, end: to});
+        else if (ranges.length < rangeLimit) ranges.push({start: from, end: to});
         else {rangesTruncated = true; break;}
       }
       // Highlight caps do not affect whether the document is counted as a hit.
-      if (rangesTruncated || ranges.length >= maxRanges) {rangesTruncated = true; break;}
+      if (rangesTruncated || (!fullDocument && ranges.length >= rangeLimit)) {rangesTruncated = true; break;}
       candidates.lastIndex = match.end;
     }
-    if (first) hits.push({seq: doc.seq, time: doc.time, type: doc.type,
-      snippet: prefix + text.slice(start, end) + (end < text.length ? '…' : ''), ranges,
-      ...(rangesTruncated ? {rangesTruncated: true} : {})});
+    if (first) {
+      if (fullDocument) {
+        totalRanges += ranges.length;
+        if (rangesTruncated) truncated = true;
+        hits.push({index: doc.index, ranges, ...(rangesTruncated ? {rangesTruncated: true} : {})});
+      } else hits.push({seq: doc.seq, time: doc.time, type: doc.type,
+        snippet: prefix + text.slice(start, end) + (end < text.length ? '…' : ''), ranges,
+        ...(rangesTruncated ? {rangesTruncated: true} : {})});
+    }
   }
-  return JSON.stringify({hits, hasExactMatches});
+  return JSON.stringify(fullDocument ? {items: hits, ...(truncated ? {truncated: true} : {})} : {hits, hasExactMatches});
 }
-const matchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-matcher-v1.7.vm.js'});
-const fuzzyMatchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-fuzzy-v1.7.vm.js'});
-function matchDocuments(documents, spec) {
+const matchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges, fullDocument)`, {filename: 'session-search-matcher-v1.7.vm.js'});
+const fuzzyMatchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges, fullDocument)`, {filename: 'session-search-fuzzy-v1.7.vm.js'});
+function matchDocuments(documents, spec, fullDocument) {
   try {
     // One deadline covers the complete per-session document list, NOT one
     // budget per candidate or exec call. No regex executes outside this VM.
     const script = spec.fuzzy === 'off' ? matchingScript : fuzzyMatchingScript;
-    return JSON.parse(script.runInNewContext({documents, spec, maxSnippet: MAX_SNIPPET, maxRanges: MAX_RANGES},
+    return JSON.parse(script.runInNewContext({documents, spec, fullDocument, maxSnippet: MAX_SNIPPET,
+      maxRanges: fullDocument ? MAX_HIGHLIGHT_RANGES : MAX_RANGES},
       {timeout: MATCH_TIMEOUT_MS, contextCodeGeneration: {strings: false, wasm: false}}));
   } catch (error) {
     if (error?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') {
-      throw new SearchMatchError(`Search matching timed out after ${MATCH_TIMEOUT_MS}ms for one session. Simplify the expression or narrow the scope. No partial results returned.`, 'SEARCH_MATCH_TIMEOUT');
+      throw new SearchMatchError(`Search matching timed out after ${MATCH_TIMEOUT_MS}ms for ${fullDocument ? 'the highlight batch' : 'one session'}. Simplify the expression or narrow the scope. No partial results returned.`, 'SEARCH_MATCH_TIMEOUT');
     }
     if (error?.name === 'SyntaxError') throw new SearchMatchError(`Invalid regular expression: ${error.message}`, 'INVALID_REGEX');
     throw new SearchMatchError(`Search matching failed: ${error instanceof Error ? error.message : String(error)}`, 'SEARCH_MATCH_FAILED');
   }
+}
+
+function matchOptions(input) {
+  const matchCase = flag(input.matchCase, 'matchCase');
+  const wholeWord = flag(input.wholeWord, 'wholeWord');
+  const useRegex = flag(input.useRegex, 'useRegex');
+  if (input.fuzzy === null) throw new Error('Invalid fuzzy mode');
+  const fuzzy = choice(input.fuzzy, 'off', ['off', 'typo', 'subsequence'], 'fuzzy mode');
+  if (useRegex && fuzzy !== 'off') throw new Error('useRegex cannot be combined with fuzzy matching. Set fuzzy to off.');
+  return {matchCase, wholeWord, useRegex, fuzzy};
+}
+function matchQuery(value, fuzzy) {
+  const query = string(value, 'query');
+  if (fuzzy !== 'off') {
+    if (Array.from(query).length > 128) throw new Error('Fuzzy query must contain at most 128 Unicode code points.');
+    if ((query.match(/[\p{L}\p{N}_]+/gu) || []).length > 16) throw new Error('Fuzzy query must contain at most 16 word terms (Unicode letters, numbers, or underscore).');
+  }
+  return query;
+}
+// Rendered text is transient request data: no catalog, storage or tool access.
+// Full-document ranges reuse the search algorithms and one timed VM batch.
+export function highlightText(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Expected a highlight request');
+  const options = matchOptions(input);
+  const query = matchQuery(input.query, options.fuzzy);
+  if (!Array.isArray(input.texts) || input.texts.length > MAX_HIGHLIGHT_TEXTS) throw new Error(`texts must be an array of at most ${MAX_HIGHLIGHT_TEXTS} text blocks`);
+  let size = 0;
+  const documents = Array.from(input.texts, (text, index) => {
+    if (typeof text !== 'string') throw new Error('Every text block must be a string');
+    size += text.length;
+    if (size > MAX_HIGHLIGHT_TEXT) throw new Error(`texts exceed ${MAX_HIGHLIGHT_TEXT} UTF-16 code units`);
+    return {text, index};
+  });
+  return matchDocuments(documents, {query, ...options}, {maxTotalRanges: MAX_HIGHLIGHT_TOTAL_RANGES});
 }
 
 export async function search(services, input, signal = new AbortController().signal) {
@@ -296,20 +352,11 @@ export async function search(services, input, signal = new AbortController().sig
   const action = choice(input.action, 'search', ['sessions', 'search', 'groups'], 'action');
   const includeSubagents = flag(input.includeSubagents, 'includeSubagents');
   const includeArchived = flag(input.includeArchived, 'includeArchived');
-  const matchCase = flag(input.matchCase, 'matchCase');
-  const wholeWord = flag(input.wholeWord, 'wholeWord');
-  const useRegex = flag(input.useRegex, 'useRegex');
-  if (input.fuzzy === null) throw new Error('Invalid fuzzy mode');
-  const fuzzy = choice(input.fuzzy, 'off', ['off', 'typo', 'subsequence'], 'fuzzy mode');
-  if (useRegex && fuzzy !== 'off') throw new Error('useRegex cannot be combined with fuzzy matching. Set fuzzy to off.');
+  const {matchCase, wholeWord, useRegex, fuzzy} = matchOptions(input);
   const content = choice(input.content, 'final', ['final', 'all'], 'content mode');
   const order = choice(input.order, 'newest', ['newest', 'oldest'], 'result order');
   const options = {includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex, fuzzy};
-  const query = action !== 'sessions' ? string(input.query, 'query') : undefined;
-  if (fuzzy !== 'off' && query !== undefined) {
-    if (Array.from(query).length > 128) throw new Error('Fuzzy query must contain at most 128 Unicode code points.');
-    if ((query.match(/[\p{L}\p{N}_]+/gu) || []).length > 16) throw new Error('Fuzzy query must contain at most 16 word terms (Unicode letters, numbers, or underscore).');
-  }
+  const query = action !== 'sessions' ? matchQuery(input.query, fuzzy) : undefined;
   const sessionIds = selection(input, 'sessionId', 'sessionIds', 1000);
   const workspaceIds = selection(input, 'workspaceId', 'workspaceIds', 200);
   const after = timestamp(input.after, 'after'), before = timestamp(input.before, 'before');

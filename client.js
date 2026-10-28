@@ -108,6 +108,8 @@ window.__ModuleLoader__.load({
       sessionLimit: '最多选择 1,000 个会话，或清除选择以搜索所有会话。',
       workspaceLimit: '最多选择 200 个工作区，或清除选择以搜索所有工作区。'
     });
+    Object.assign(en, {conversationHighlights: 'Search highlights', clearHighlights: 'Clear highlights (Esc)', highlighting: 'Highlighting loaded conversation text…', highlightReady: 'Matching text is highlighted. Press Esc to clear.', highlightEmpty: 'No matches in the currently displayed text. Load older messages or expand collapsed content to highlight more.', highlightLimited: 'Highlight limit reached; only part of the displayed text is highlighted.', highlightZeroWidth: 'Nonempty matches are highlighted; zero-width regex matches have no text to paint.', highlightUnavailable: 'This browser does not support conversation highlights.', highlightFailed: 'Could not highlight conversation text.'});
+    Object.assign(zh, {conversationHighlights: '搜索高亮', clearHighlights: '清除高亮（Esc）', highlighting: '正在高亮已加载的对话文本…', highlightReady: '匹配文本已高亮。按 Esc 清除。', highlightEmpty: '当前显示的文本中没有匹配。加载更早消息或展开折叠内容可继续高亮。', highlightLimited: '已达到高亮上限，仅高亮部分显示文本。', highlightZeroWidth: '已高亮非空匹配；零宽正则匹配没有可标黄文本。', highlightUnavailable: '当前浏览器不支持对话高亮。', highlightFailed: '无法高亮对话文本。'});
     const css = `
     .dss-page{box-sizing:border-box;display:flex;flex-direction:column;height:100%;min-height:0;width:100%;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:14px;line-height:1.5;container-type:inline-size}
     .dss-page *{box-sizing:border-box}.dss-page [hidden]{display:none!important}.dss-page p{margin:0}.dss-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.65}
@@ -321,6 +323,145 @@ window.__ModuleLoader__.load({
           if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
           return value;
         }
+        // View-only intent: never saved to session events, storage, or the URL.
+        let highlightIntent = null;
+        const highlightListeners = new Set();
+        const setHighlightIntent = value => {highlightIntent = value; for (const listener of highlightListeners) listener();};
+        ctx.effect(() => {
+          const escape = event => {
+            if (event.key !== 'Escape' || event.isComposing || !highlightIntent) return;
+            event.preventDefault(); event.stopPropagation(); setHighlightIntent(null);
+          };
+          window.addEventListener('keydown', escape, true);
+          return () => {window.removeEventListener('keydown', escape, true); setHighlightIntent(null); window.CSS?.highlights?.delete('dss-conversation-match');};
+        });
+        const HighlightRoot = React.createContext(null);
+        const highlightCss = `
+          .dss-conversation-root{display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0;height:100%;position:relative}
+          .dss-conversation-root *::highlight(dss-conversation-match){background:var(--dsw-alias-state-warn-primary);color:var(--dss-mark-ink,var(--dsw-alias-bg-base));text-decoration:none}
+          .dss-conversation-highlight-control{display:inline-flex;align-items:center;gap:6px;max-width:220px;color:var(--dsw-alias-label-secondary);font-size:11px}
+          .dss-conversation-highlight-control span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+          .dss-conversation-highlight-control button{font:inherit;cursor:pointer;padding:3px 7px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
+          .dss-conversation-highlight-control button:hover{background:var(--dsw-alias-bg-layer-2)}
+          .dss-conversation-highlight-control button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+        `;
+        function OwnedConversation({renderSlot}) {
+          const root = useHighlightContrast();
+          return h(HighlightRoot.Provider, {value: root}, h('div', {ref: root, className: 'dss-conversation-root'},
+            h('style', null, highlightCss), renderSlot('main.conversation', {})));
+        }
+        // Read only our owned subtree; CSS Custom Highlights paint DOM Ranges
+        // without inserting mark tags into React's tree or changing saved text.
+        function collectHighlightBlocks(root) {
+          const excluded = 'script,style,textarea,input,select,button,header,nav,form,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="dialog"],[data-dss-highlight-ui]';
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+          const groups = [];
+          let total = 0, visited = 0, truncated = false, node, previousBlock;
+          while ((node = walker.nextNode())) {
+            if (++visited > 20000) {truncated = true; break;}
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              if (node.tagName === 'BR') previousBlock = null;
+              continue;
+            }
+            const parent = node.parentElement;
+            if (!parent || parent.closest(excluded) || !node.data.length || !parent.getClientRects().length) {previousBlock = null; continue;}
+            const style = getComputedStyle(parent);
+            if (style.visibility === 'hidden' || style.visibility === 'collapse') {previousBlock = null; continue;}
+            const block = parent.closest('p,pre,li,td,th,h1,h2,h3,h4,h5,h6,div,section,article') || parent;
+            if (!root.contains(block)) continue;
+            if ((previousBlock !== block && groups.length >= 500) || total + node.data.length > 200000) {truncated = true; break;}
+            if (previousBlock !== block) {groups.push({text: '', nodes: []}); previousBlock = block;}
+            const group = groups[groups.length - 1];
+            group.nodes.push({node, start: group.text.length, text: node.data});
+            group.text += node.data; total += node.data.length;
+          }
+          return {blocks: groups, truncated};
+        }
+        function domHighlightRange(block, start, end, root) {
+          if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end > block.text.length) return null;
+          const first = block.nodes.find(part => part.start + part.text.length > start || start === block.text.length && part.start + part.text.length === start);
+          const last = block.nodes.find(part => part.start + part.text.length >= end);
+          if (!first || !last || !root.contains(first.node) || !root.contains(last.node)) return null;
+          const range = document.createRange();
+          range.setStart(first.node, start - first.start); range.setEnd(last.node, end - last.start);
+          return range;
+        }
+        function ConversationHighlights({sessionId}) {
+          React.useSyncExternalStore(fn => ctx.locale.subscribe(fn), () => ctx.locale.getSnapshot());
+          const root = React.useContext(HighlightRoot);
+          const intent = React.useSyncExternalStore(fn => {highlightListeners.add(fn); return () => highlightListeners.delete(fn);}, () => highlightIntent);
+          const active = intent?.sessionId === sessionId ? intent : null;
+          const [status, setStatus] = React.useState({intent: null, key: 'highlighting'});
+          React.useEffect(() => {
+            if (!active || !root?.current) return;
+            const registry = window.CSS?.highlights;
+            if (!registry || typeof window.Highlight !== 'function') {setStatus({intent: active, key: 'highlightUnavailable'}); return;}
+            const container = root.current;
+            let timer, controller, disposed = false, generation = 0;
+            const clearPaint = () => registry.delete('dss-conversation-match');
+            // Throttle, rather than trailing debounce: streaming must not postpone
+            // painting the settled messages forever. Keep old valid ranges meantime.
+            const schedule = () => {
+              if (timer || disposed) return;
+              timer = setTimeout(() => {timer = null; scan();}, 250);
+            };
+            async function scan() {
+              const current = ++generation;
+              controller?.abort(); controller = new AbortController();
+              const signal = controller.signal;
+              setStatus({intent: active, key: 'highlighting'});
+              try {
+                const snapshot = collectHighlightBlocks(container);
+                const response = await fetch(new URL('api/local-session-search-highlight', document.baseURI), {
+                  method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({...active.spec, texts: snapshot.blocks.map(block => block.text)})
+                });
+                const value = await response.json();
+                if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
+                if (disposed || signal.aborted || current !== generation || highlightIntent !== active) return;
+                // A streaming block must not prevent stable messages being painted.
+                const valid = snapshot.blocks.map(block => block.nodes.every(part => container.contains(part.node) && part.node.data === part.text));
+                if (valid.some(value => !value)) schedule();
+                const highlight = new window.Highlight();
+                let count = 0, zeroWidth = false;
+                for (const item of value.items || []) {
+                  const block = snapshot.blocks[item.index]; if (!block || !valid[item.index]) continue;
+                  for (const selected of item.ranges || []) {
+                    if (selected.start === selected.end) {zeroWidth = true; continue;}
+                    if (count >= 2048) break;
+                    const range = domHighlightRange(block, selected.start, selected.end, container);
+                    if (range) {highlight.add(range); count++;}
+                  }
+                }
+                registry.set('dss-conversation-match', highlight);
+                setStatus({intent: active, key: snapshot.truncated || value.truncated || value.items?.some(item => item.rangesTruncated) ? 'highlightLimited' : zeroWidth ? 'highlightZeroWidth' : count ? 'highlightReady' : 'highlightEmpty'});
+              } catch (error) {
+                if (!disposed && !signal.aborted && current === generation) {clearPaint(); setStatus({intent: active, key: 'highlightFailed', error: error.message});}
+              }
+            }
+            const observer = new MutationObserver(changes => {
+              if (changes.some(change => {
+                const target = change.target.nodeType === Node.TEXT_NODE ? change.target.parentElement : change.target;
+                return target && !target.closest('[data-dss-highlight-ui],style,header,nav,form,button,[contenteditable]:not([contenteditable="false"])');
+              })) schedule();
+            });
+            observer.observe(container, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'open', 'class', 'style']});
+            schedule();
+            return () => {disposed = true; generation++; clearTimeout(timer); controller?.abort(); observer.disconnect(); clearPaint();};
+          }, [active, root, sessionId]);
+          if (!active) return null;
+          const message = status.intent === active ? t(status.key) : t('highlighting');
+          return h('div', {'data-dss-highlight-ui': '', className: 'dss-conversation-highlight-control', role: 'status', title: `${message}${status.error ? ` ${status.error}` : ''}`},
+            h('span', null, `${t('conversationHighlights')}: ${active.spec.query} — ${message}${status.intent === active && status.error ? ` ${status.error}` : ''}`),
+            h('button', {type: 'button', title: t('clearHighlights'), 'aria-label': t('clearHighlights'), onClick: () => setHighlightIntent(null)}, '×'));
+        }
+        function openHighlightedConversation(hit, request) {
+          const spec = {query: request.query, matchCase: request.matchCase, wholeWord: request.wholeWord, useRegex: request.useRegex, fuzzy: request.fuzzy};
+          const previous = highlightIntent;
+          setHighlightIntent({sessionId: hit.sessionId, spec});
+          try {ctx.uiWorkspace.openSession(hit.sessionId);} catch (error) {setHighlightIntent(previous); throw error;}
+        }
         // Keep pages mounted across view switches; a switch is presentation only.
         // Request keys isolate query/filter changes, and abort/generation guards
         // prevent late replies or pagination from overwriting a newer search.
@@ -393,7 +534,7 @@ window.__ModuleLoader__.load({
             h('h3', null, t(pending ? 'pendingTitle' : empty ? 'emptyTitle' : 'readyTitle')),
             h('p', null, t(pending ? 'pending' : empty ? 'empty' : 'start')));
         }
-        function ResultCard({hit, within, grouped = false, showWorkspace = false, fallbackTitle}) {
+        function ResultCard({hit, request, within, grouped = false, showWorkspace = false, fallbackTitle}) {
           return h('article', {className: 'dss-hit'},
             !grouped && h('div', {className: 'dss-hit-heading'}, h('h2', null, hit.title || fallbackTitle || t('untitled')),
               showWorkspace && h(WorkspaceLabel, {hit}), h(Badges, {hit})),
@@ -402,7 +543,7 @@ window.__ModuleLoader__.load({
               !grouped && h('span', {className: 'dss-id', title: hit.sessionId}, shortId(hit.sessionId))),
             h('pre', {className: 'dss-snippet'}, h(Highlight, {text: hit.snippet, ranges: hit.ranges})),
             h('div', {className: 'dss-actions'},
-              h('button', {type: 'button', disabled: hit.archived, title: hit.archived ? t('archivedHint') : t('open'), onClick: () => ctx.uiWorkspace.openSession(hit.sessionId)}, t('open'), h(Glyph, {kind: 'arrow', size: 13})),
+              h('button', {type: 'button', disabled: hit.archived, title: hit.archived ? t('archivedHint') : t('open'), onClick: () => openHighlightedConversation(hit, request)}, t('open'), h(Glyph, {kind: 'arrow', size: 13})),
               within && h('button', {type: 'button', className: 'dss-primary', onClick: () => within(hit.sessionId)}, t('within'))));
         }
         function SessionGroup({group, request, enabled, revision, within, delay}) {
@@ -424,7 +565,7 @@ window.__ModuleLoader__.load({
               changed && h('div', {className: 'dss-error', role: 'status'}, t('groupChanged')),
               result.page?.warnings?.length > 0 && h('p', {className: 'dss-error', role: 'status'}, t('partial')),
               result.busy && !result.page && h('p', {className: 'dss-message', role: 'status'}, t('loading')),
-              result.page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, within, grouped: true})),
+              result.page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, request, within, grouped: true})),
               result.page && h('p', {className: 'dss-muted dss-group-progress'}, `${t('loadedMatches')}: ${result.page.items.length} / ${result.page.total}`),
               result.page?.nextCursor && h('button', {type: 'button', className: 'dss-more', disabled: result.busy, onClick: result.more}, result.busy ? t('loading') : t('more'))));
         }
@@ -681,12 +822,16 @@ window.__ModuleLoader__.load({
               h('div', {'aria-live': 'polite', 'aria-busy': busy},
                 busy && !page ? h('div', {className: 'dss-message', role: 'status'}, t('loading')) : !query.trim() ? h(EmptyState) : page?.items.length === 0 ? h(EmptyState, {empty: true, pending: Boolean(page.nextCursor)}) : null,
                 h(FuzzyNotice, {page, busy, error}),
-                page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, fallbackTitle: selected?.title, showWorkspace: workspaceIds.length !== 1, within: sessionIds.length !== 1 ? within : undefined})),
+                page?.items.map(hit => h(ResultCard, {key: `${hit.sessionId}:${hit.seq}`, hit, request, fallbackTitle: selected?.title, showWorkspace: workspaceIds.length !== 1, within: sessionIds.length !== 1 ? within : undefined})),
                 page?.nextCursor && h('button', {className: 'dss-more', type: 'button', disabled: busy, onClick: more}, busy ? t('loading') : t('more'))))
             )));
         }
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({name: 'sidebar.panellist', id: PANEL, order: -10, label: () => t('title')}, Icon));
         ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: PANEL}, SearchPage));
+        // Preserve the shipped shell, width controls, composer and every Chat renderer.
+        ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: 'conversation', priority: 10,
+          children: {'main.conversation': {kind: 'single', scope: 'session-maybe'}}}, OwnedConversation));
+        ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({name: 'conversation.session.header.actions', id: 'session-search-highlights', order: 30}, ConversationHighlights));
         ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({name: 'plugins.bundle.config', key: 'dsh-session-search', locale: NS}, SettingsForm));
       }
     };

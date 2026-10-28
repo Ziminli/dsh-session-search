@@ -6,7 +6,7 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.3.0.**
+An independent community plugin, not an official DSH package. **Package version: 1.3.1.**
 
 ## Features
 
@@ -64,7 +64,9 @@ This is tool input, not a shell command. Replace the target with the actual abso
 4. Adjust matching, scope and **Message time** options. Presets include Today, Last 24 hours, Last 7 days and This month. Custom start/end dates use your browser's local timezone; an end date includes that entire calendar day. Either bound may be omitted. Time uses individual message timestamps, not session activity, and relative windows stay fixed while loading more. **Final model replies only** starts on; subagents and archived sessions start off.
 5. Choose result order and, for all-session scope, **Timeline / By session**. Groups are ordered by their newest matching message, or oldest matching message when reversed. A message counts once even when the query occurs repeatedly in it.
 6. Expand groups and use **Load more results / Load more sessions** (40 entries per page). Group counts include all matching events, not just loaded pages.
-7. Click **Refresh sessions** after activity, rename, deletion or archival elsewhere. **Open conversation** navigates to an unarchived conversation, but cannot scroll to the exact matching event. Restore archived sessions in DSH's sidebar/archive manager before opening; search never restores them.
+7. Click **Refresh sessions** after activity, rename, deletion or archival elsewhere. **Open conversation** navigates to an unarchived conversation and temporarily highlights matching displayed text in yellow, using that result's exact/regex/fuzzy options. Press **Esc** or the header's **Clear highlights** button to remove it. Restore archived sessions in DSH's sidebar/archive manager before opening; search never restores them.
+
+Conversation highlights are view-only: saved messages, selection/copying and original Chat renderers are unchanged. They apply to currently rendered, non-hidden text blocks, not unloaded history or collapsed content; loading older messages or expanding content refreshes them. The result's time/final-only filters select search outcomes, not which text is painted after opening. Markdown rendering can change whitespace or remove syntax, so highlights follow displayed text and cannot span separate block elements. There is no automatic jump to the original event. Highlighting uses the browser CSS Custom Highlight API, with an explicit unsupported-browser notice, a 100 ms Host deadline, and bounded scans (500 blocks / 200,000 UTF-16 units / 2,048 ranges); partial coverage and errors are shown in the header. The query is temporary, not saved or added to the URL.
 
 Escape or the close button returns to the conversation. Query/options survive while the client module stays loaded; loaded pages and expansion state survive view switches while the panel stays mounted. These are not permanent settings across application restarts; the saved search-timing preference is profile-persistent. For native browser page-find while the plugin owns Ctrl+F/⌘F, use the browser menu.
 
@@ -139,3 +141,6 @@ A ready-to-copy [community listing entry](<docs/community-listing.yml>) follows 
 ## License
 
 [MIT](<LICENSE>) © 2026 Zimin Li. The included original SVG icon is covered by the same license.
+
+
+> **Known issue / 已知问题:** This historical version can fail at startup due to a duplicate Conversation slot. Fixed in 1.3.2; install 1.3.3 instead. / 此历史版本可能因重复对话插槽无法启动；已在 1.3.2 修复，建议安装 1.3.3。
