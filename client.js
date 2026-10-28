@@ -42,6 +42,10 @@ window.__ModuleLoader__.load({
       matching: 'One result per matching reply/event, not per text occurrence. Final replies exclude reasoning, tools and intermediate messages.',
       matchCase: 'Match Case', wholeWord: 'Match Whole Word', useRegex: 'Use Regular Expression', searchModes: 'Search modes',
       regexHint: 'Regular expressions use JavaScript Unicode syntax, without / delimiters. Complex patterns may time out.',
+      fuzzy: 'Text matching', fuzzyOff: 'Exact', fuzzyTypo: 'Typo-tolerant', fuzzySubsequence: 'Subsequence',
+      fuzzyOffHint: 'Exact text by default. Select a fuzzy mode for spelling mistakes or abbreviations. Regex and fuzzy modes are mutually exclusive.',
+      fuzzyTypoHint: 'Match complete words with small spelling mistakes, including swapped letters: wrokspace → workspace. Words of 1–3 characters require an exact match; 4–7 allow 1 edit; 8+ allow 2. Max 128 characters / 16 words.',
+      fuzzySubsequenceHint: 'Match ordered letters inside each word: wrkspc → workspace. Words must stay together in query order; matches cannot span unrelated text. Candidate words are limited to 4× query-word length + 8. Max 128 characters / 16 words.',
       pickerHint: 'Whole conversations, latest user activity first. Empty/internal-only sessions are omitted; untitled conversations remain available.',
       includeArchived: 'Include archived sessions', archived: 'Archived', finalOnly: 'Final model replies only',
       finalHint: 'Turn this off to include user inputs, intermediate replies, tools and stored reasoning.',
@@ -58,6 +62,10 @@ window.__ModuleLoader__.load({
       matching: '每条匹配回复或事件显示一个结果，不按文本出现次数计数。最终回复不包含推理、工具和中间消息。',
       matchCase: '区分大小写', wholeWord: '全字匹配', useRegex: '使用正则表达式', searchModes: '匹配模式',
       regexHint: '正则表达式采用 JavaScript Unicode 语法，不需要 / 分隔符。复杂表达式可能超时。',
+      fuzzy: '文本匹配', fuzzyOff: '精确', fuzzyTypo: '拼写容错', fuzzySubsequence: '子序列',
+      fuzzyOffHint: '默认精确匹配。选择模糊模式可容忍拼写错误或使用缩写。正则表达式与模糊模式互斥。',
+      fuzzyTypoHint: '匹配有少量拼写错误的完整词，包括相邻字母交换：wrokspace → workspace。1–3 字符的词需精确匹配，4–7 字符允许 1 次编辑，8 字符以上允许 2 次。查询最多 128 字符 / 16 个词。',
+      fuzzySubsequenceHint: '在每个词内依序匹配字符：wrkspc → workspace。各词必须按查询顺序连续出现，不跨无关文本匹配。候选词长度不超过查询词长度的 4 倍加 8。查询最多 128 字符 / 16 个词。',
       pickerHint: '每项代表完整对话，按最近用户活动排序。空会话和内部会话不显示；未命名对话仍可搜索。',
       includeArchived: '包含已归档会话', archived: '已归档', finalOnly: '仅搜索模型最终回复',
       finalHint: '取消勾选以包含用户输入、中间回复、工具和存储的推理文本。',
@@ -123,7 +131,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'en', en));
         ctx.effect(() => ctx.locale.register(NS, 'zh', zh));
         const t = ctx.locale.bind(NS);
-        const stored = {query: '', scope: '', workspaceId: '', includeSubagents: false, includeArchived: false, finalOnly: true, order: 'newest', matchCase: false, wholeWord: false, useRegex: false, view: 'timeline'};
+        const stored = {query: '', scope: '', workspaceId: '', includeSubagents: false, includeArchived: false, finalOnly: true, order: 'newest', matchCase: false, wholeWord: false, useRegex: false, fuzzy: 'off', view: 'timeline'};
         const focusListeners = new Set();
         const focus = () => {for (const fn of focusListeners) fn();};
         ctx.effect(() => {
@@ -262,6 +270,7 @@ window.__ModuleLoader__.load({
           const [matchCase, setMatchCase] = React.useState(stored.matchCase);
           const [wholeWord, setWholeWord] = React.useState(stored.wholeWord);
           const [useRegex, setUseRegex] = React.useState(stored.useRegex);
+          const [fuzzy, setFuzzy] = React.useState(stored.fuzzy);
           const [view, setView] = React.useState(stored.view);
           const tree = !scope && view === 'session';
           const content = finalOnly ? 'final' : 'all';
@@ -270,12 +279,20 @@ window.__ModuleLoader__.load({
           const [catalogState, setCatalogState] = React.useState('loading');
           const [catalogVersion, setCatalogVersion] = React.useState(0);
           const [version, setVersion] = React.useState(0);
-          const request = {query, workspaceId: workspaceId || undefined, includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex};
+          const request = {query, workspaceId: workspaceId || undefined, includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex, fuzzy};
           const timeline = usePaged({...request, sessionId: scope || undefined}, !tree && Boolean(query.trim()), version);
           const {page, error, busy, more} = timeline;
           const input = React.useRef(null);
           const setText = value => {stored.query = value; setQuery(value);};
           const setTarget = value => {stored.scope = value; setScope(value);};
+          const setFuzzyMode = value => {
+            stored.fuzzy = value; setFuzzy(value);
+            if (value !== 'off') {stored.useRegex = false; setUseRegex(false);}
+          };
+          const setRegexMode = enabled => {
+            stored.useRegex = enabled; setUseRegex(enabled);
+            if (enabled) {stored.fuzzy = 'off'; setFuzzy('off');}
+          };
           const setWorkspace = value => {
             stored.workspaceId = value; setWorkspaceId(value);
             setTarget(''); setFilter(''); setCatalog([]); setCatalogState('loading');
@@ -325,10 +342,14 @@ window.__ModuleLoader__.load({
                     ...[
                       ['matchCase', 'Aa', matchCase, setMatchCase],
                       ['wholeWord', 'ab', wholeWord, setWholeWord],
-                      ['useRegex', '.*', useRegex, setUseRegex]
+                      ['useRegex', '.*', useRegex, setRegexMode]
                     ].map(([name, label, enabled, setEnabled]) => h('button', {key: name, type: 'button', className: `dss-mode${name === 'wholeWord' ? ' dss-mode-word' : ''}`, title: t(name), 'aria-label': t(name), 'aria-pressed': enabled, onClick: () => {stored[name] = !enabled; setEnabled(!enabled);}}, label)))),
                 h('button', {className: 'dss-primary', disabled: !query.trim(), type: 'submit'}, t('search')),
                 query && h('button', {type: 'button', onClick: () => {setText(''); input.current?.focus();}}, t('clear'))),
+              h('div', {className: 'dss-options'}, h('label', {htmlFor: 'dss-fuzzy'}, t('fuzzy')),
+                h('select', {id: 'dss-fuzzy', value: fuzzy, 'aria-describedby': 'dss-fuzzy-hint', onChange: e => setFuzzyMode(e.target.value)},
+                  ...[['off', 'fuzzyOff'], ['typo', 'fuzzyTypo'], ['subsequence', 'fuzzySubsequence']].map(([value, label]) => h('option', {key: value, value}, t(label))))),
+              h('p', {id: 'dss-fuzzy-hint', className: 'dss-muted'}, t(fuzzy === 'typo' ? 'fuzzyTypoHint' : fuzzy === 'subsequence' ? 'fuzzySubsequenceHint' : 'fuzzyOffHint')),
               h('div', {className: 'dss-options'}, h('label', {htmlFor: 'dss-workspace'}, t('workspace')),
                 h('select', {id: 'dss-workspace', value: workspaceId, title: t('workspaceHint'), onChange: e => setWorkspace(e.target.value)},
                   h('option', {value: ''}, t('allWorkspaces')),

@@ -4,13 +4,14 @@ English | [简体中文](<README.zh-CN.md>)
 
 Find text across your DeepSeek Harness (DSH) conversation history—across all sessions or within one conversation. Open the search panel from the sidebar or with **Ctrl+F / ⌘F**.
 
-An independent community plugin, not an official DSH package. **Package version: 1.1.0.**
+An independent community plugin, not an official DSH package. **Package version: 1.2.0.**
 
 ## Features
 
 - **All workspaces or one workspace**, with a dependent session picker and workspace labels in all-workspace results (Timeline and By session).
 - **All sessions or one session**, with a title/ID filter and a latest-user-activity-first conversation picker.
 - VS Code-style **Aa (Match Case)**, **ab (Whole Word)** and **.* (Regular Expression)** toggles, combinable with one another.
+- Optional **Typo-tolerant** and **Subsequence** fuzzy modes alongside default **Exact** matching.
 - **Timeline** results or collapsible **By session** groups with complete matching-message counts.
 - **Newest first / Oldest first**, ordered by matching-message time rather than unrelated session activity.
 - Optional **subagent conversations** and **archived sessions**, clearly labeled.
@@ -73,6 +74,16 @@ Escape or the close button returns to the conversation. Query/options survive wh
 
 All toggles start off: punctuation is literal, and whitespace between query terms is flexible. Query length is limited to 1,024 UTF-16 code units. Invalid patterns and matching that exceeds **100 ms per session** fail the whole search explicitly rather than silently omitting matches. Zero-width matches use a small vertical highlight. Matching runs on complete stored message text; snippets/highlights are bounded previews, not every occurrence in a long message.
 
+### Fuzzy modes
+
+Use **Text matching → Typo-tolerant / Subsequence**; **Exact** stays the default. Choosing a fuzzy mode turns Regex off; turning Regex on restores Exact. The HTTP/tool API rejects requests combining `useRegex: true` with a non-`off` `fuzzy` value.
+
+- **Typo-tolerant**: `wrokspace` or `workspce` finds `workspace`. Compares complete Unicode letter/number/underscore words using insertion, deletion, substitution and adjacent transposition (optimal string alignment). Query words of 1–3 Unicode characters allow 0 edits, 4–7 allow 1, and 8+ allow 2. The matched word is highlighted.
+- **Subsequence**: `wrkspc` finds `workspace`. Characters stay in order **inside a single word**, not across arbitrary message text; highlights mark the selected characters. Candidate words may have at most `4 × query-word length + 8` Unicode characters to limit noisy matches.
+- Multiple query words form a **contiguous phrase**, in query order, with flexible whitespace. Punctuation stays literal. Words are maximal Unicode letter/number/underscore runs, not language-aware segmentation; fuzzy search is not semantic or synonym search.
+- Match Case and Whole Word remain available. Fuzzy word tokens already compare full words; Whole Word additionally guards the complete phrase's outer edges, including punctuation-led/trailing phrases.
+- Fuzzy queries are limited to **128 Unicode code points / 16 word terms**, within the general 1,024 UTF-16-unit limit. Both modes keep chronological ordering, complete group counts, scope filtering and the same hard per-session matching deadline. Fuzzy results are not relevance-ranked.
+
 **Final replies** are text blocks from the last non-interrupted assistant message of a successfully completed turn, provided that message contains no tool call. Progress text, reasoning, tool calls/results, open/interrupted turns and tool-only endings are excluded. This is inferred from durable events, not a stored final/commentary channel label.
 
 Turn **Final model replies only** off to include stored user/system/developer inputs, intermediate assistant text, reasoning, tool calls/results and recorded failed-attempt text. Search does not retrieve hidden provider data, OCR images or open attachment files. Raw provider envelopes and stream duplicates of committed messages are not separately indexed.
@@ -89,7 +100,7 @@ Every eligible session is scanned before pagination so chronological ordering an
 
 `workspaceId` restricts all three actions to one workspace; omit it for all workspaces. Discover IDs from the `sessions` response's `workspaces` catalog, including `__ungrouped__`. Responses include workspace scope metadata, and each session, hit and group carries `workspaceId`, `workspaceTitle` and `workspacePath`. An unknown workspace or a session outside the selected workspace is rejected instead of broadening the search. Registered sidebar membership takes priority; an exact, unambiguous cwd-root match is the fallback. Ambiguous or unmatched conversations remain Ungrouped; subagents inherit their parent's workspace. Continuation cursors bind the workspace scope.
 
-Options: `query`, optional `workspaceId` and `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord` and `useRegex`. Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
+Options: `query`, optional `workspaceId` and `sessionId`, `includeSubagents`, `includeArchived`, `content` (`final` or `all`), `order` (`newest` or `oldest`), `matchCase`, `wholeWord`, `useRegex` and `fuzzy` (`off`, `typo` or `subsequence`). Pass `nextCursor` back as `cursor` with unchanged action/query/options to continue. Defaults match the panel. Tool availability depends on the active agent and DSH policy.
 
 ## Privacy and safety
 
@@ -114,3 +125,6 @@ Runtime files: [index.js](<index.js>) (Host/HTTP/tool), [search.js](<search.js>)
 ## License
 
 [MIT](<LICENSE>) © 2026 Zimin Li. The included original SVG icon is covered by the same license.
+
+
+[Changelog / 更新日志](https://github.com/Ziminli/dsh-session-search/blob/v1.2.0/CHANGELOG.md)

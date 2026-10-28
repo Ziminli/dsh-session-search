@@ -78,12 +78,174 @@ function matchDocumentList(documents, spec, maxSnippet, maxRanges) {
   }
   return JSON.stringify(hits);
 }
-const matchingScript = new Script(`(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-matcher-v1.5.vm.js'});
+// A separate branch deliberately leaves the established literal/regex matcher
+// above untouched. All helpers, candidate scans, DP, and snippet work below run
+// within the SAME per-session VM deadline; none run in the service/catalog loop.
+function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges) {
+  const wordCharacter = /[\p{L}\p{N}_]/u;
+  const wordAt = /[\p{L}\p{N}_]+/uy;
+  const spaceAt = /\s+/uy;
+  const characters = new Map();
+  function comparable(character) {
+    if (spec.matchCase) return candidate => candidate === character;
+    // Unicode simple case folding, like the exact /iu branch. Folding a whole
+    // string with toLowerCase() can expand İ and corrupt both matching/offsets.
+    if (!characters.has(character)) {
+      const escaped = character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`^(?:${escaped})$`, 'iu');
+      characters.set(character, candidate => pattern.test(candidate));
+    }
+    return characters.get(character);
+  }
+  const tokens = Array.from(spec.query.trim().matchAll(/[\p{L}\p{N}_]+|\s+|[^\p{L}\p{N}_\s]/gu), match => {
+    const value = match[0];
+    if (/^\s/u.test(value)) return {kind: 'space'};
+    if (!wordCharacter.test(value)) return {kind: 'literal', value};
+    const points = Array.from(value);
+    return {kind: 'word', length: points.length, equal: points.map(comparable),
+      edits: points.length <= 3 ? 0 : points.length <= 7 ? 1 : 2};
+  });
+  function wordMatch(token, value, offset) {
+    const limit = spec.fuzzy === 'typo' ? token.length + token.edits : 4 * token.length + 8;
+    // Reject enormous candidate words before allocating a code-point array.
+    if (value.length > 2 * limit) return null;
+    const points = Array.from(value);
+    if (points.length > limit) return null;
+    if (spec.fuzzy === 'subsequence') {
+      // Latest starts for each query prefix find the tightest window in O(n*m).
+      // Descending updates ensure repeated query letters consume distinct points.
+      const starts = new Array(token.length).fill(-1);
+      let bestStart = -1, bestEnd = -1;
+      for (let i = 0; i < points.length; i++) {
+        for (let k = Math.min(i, token.length - 1); k >= 0; k--) {
+          if (!token.equal[k](points[i]) || (k > 0 && starts[k - 1] < 0)) continue;
+          starts[k] = k === 0 ? i : starts[k - 1];
+          if (k === token.length - 1 && (bestStart < 0 || i - starts[k] < bestEnd - bestStart)) {
+            bestStart = starts[k]; bestEnd = i;
+          }
+        }
+      }
+      if (bestStart < 0) return null;
+      const positions = [];
+      let position = offset;
+      for (const point of points) {positions.push(position); position += point.length;}
+      const ranges = [];
+      for (let i = bestEnd, k = token.length - 1; k >= 0; i--) {
+        if (token.equal[k](points[i])) {
+          ranges.push({start: positions[i], end: positions[i] + points[i].length}); k--;
+        }
+      }
+      return ranges.reverse();
+    }
+    const m = token.length, n = points.length, bound = token.edits;
+    if (Math.abs(m - n) > bound) return null;
+    if (m === n && points.every((point, index) => token.equal[index](point))) return [{start: offset, end: offset + value.length}];
+    if (!bound) return null;
+    // Banded optimal-string-alignment DP, not unrestricted Damerau distance.
+    // Each row needs its predecessor and the row before it for one adjacent
+    // transposition; the length bound and band keep work bounded per word.
+    const infinity = bound + 1;
+    let older, previous = Array.from({length: n + 1}, (_, j) => j <= bound ? j : infinity);
+    for (let i = 1; i <= m; i++) {
+      const current = new Array(n + 1).fill(infinity);
+      if (i <= bound) current[0] = i;
+      for (let j = Math.max(1, i - bound); j <= Math.min(n, i + bound); j++) {
+        current[j] = Math.min(previous[j] + 1, current[j - 1] + 1,
+          previous[j - 1] + (token.equal[i - 1](points[j - 1]) ? 0 : 1));
+        if (i > 1 && j > 1 && token.equal[i - 1](points[j - 2]) && token.equal[i - 2](points[j - 1])) {
+          current[j] = Math.min(current[j], older[j - 2] + 1);
+        }
+      }
+      older = previous;
+      previous = current;
+    }
+    return previous[n] <= bound ? [{start: offset, end: offset + value.length}] : null;
+  }
+  function before(text, offset) {
+    if (!offset) return '';
+    const last = text.charCodeAt(offset - 1);
+    return text.slice(offset - (last >= 0xdc00 && last <= 0xdfff && offset > 1 &&
+      text.charCodeAt(offset - 2) >= 0xd800 && text.charCodeAt(offset - 2) <= 0xdbff ? 2 : 1), offset);
+  }
+  function matchAt(text, start) {
+    if (spec.wholeWord && wordCharacter.test(before(text, start))) return null;
+    let offset = start;
+    const ranges = [];
+    for (const token of tokens) {
+      if (token.kind === 'word') {
+        wordAt.lastIndex = offset;
+        const candidate = wordAt.exec(text);
+        if (!candidate) return null;
+        const selected = wordMatch(token, candidate[0], offset);
+        if (!selected) return null;
+        ranges.push(...selected);
+        offset = wordAt.lastIndex;
+      } else if (token.kind === 'space') {
+        spaceAt.lastIndex = offset;
+        const candidate = spaceAt.exec(text);
+        if (!candidate) return null;
+        ranges.push({start: offset, end: spaceAt.lastIndex});
+        offset = spaceAt.lastIndex;
+      } else {
+        if (!text.startsWith(token.value, offset)) return null;
+        ranges.push({start: offset, end: offset + token.value.length});
+        offset += token.value.length;
+      }
+    }
+    if (spec.wholeWord && offset < text.length && wordCharacter.test(String.fromCodePoint(text.codePointAt(offset)))) return null;
+    return {start, end: offset, ranges};
+  }
+  const hits = [];
+  for (const doc of documents) {
+    const text = doc.text;
+    // Streaming tokens avoid storing the entire document or searching arbitrary
+    // substrings of a candidate word. Punctuation can start at any code point.
+    const candidates = /[\p{L}\p{N}_]+|[^\p{L}\p{N}_]/gu;
+    let candidate, first, start, end, prefix;
+    const ranges = [];
+    let rangesTruncated = false;
+    while ((candidate = candidates.exec(text))) {
+      if (first && candidate.index >= end) break;
+      const match = matchAt(text, candidate.index);
+      if (!match) continue;
+      if (!first) {
+        first = match;
+        start = Math.max(0, match.start - 100);
+        if (start > 0 && /[\uDC00-\uDFFF]/u.test(text[start]) && /[\uD800-\uDBFF]/u.test(text[start - 1])) start--;
+        end = Math.min(text.length, start + Math.min(maxSnippet - 2, Math.max(360, match.end - match.start + 140)));
+        if (end < text.length && /[\uDC00-\uDFFF]/u.test(text[end]) && /[\uD800-\uDBFF]/u.test(text[end - 1])) end--;
+        prefix = start ? '…' : '';
+      }
+      // Merge touching highlights: typo highlights complete words, subsequence
+      // highlights selected code points only; literal separators stay visible.
+      for (const range of match.ranges) {
+        if (range.start >= end) {rangesTruncated = true; break;}
+        if (range.end > end) rangesTruncated = true;
+        const from = Math.max(start, range.start) - start + prefix.length;
+        const to = Math.min(end, range.end) - start + prefix.length;
+        const last = ranges[ranges.length - 1];
+        if (last && last.end === from) last.end = to;
+        else if (ranges.length < maxRanges) ranges.push({start: from, end: to});
+        else {rangesTruncated = true; break;}
+      }
+      // Highlight caps do not affect whether the document is counted as a hit.
+      if (rangesTruncated || ranges.length >= maxRanges) {rangesTruncated = true; break;}
+      candidates.lastIndex = match.end;
+    }
+    if (first) hits.push({seq: doc.seq, time: doc.time, type: doc.type,
+      snippet: prefix + text.slice(start, end) + (end < text.length ? '…' : ''), ranges,
+      ...(rangesTruncated ? {rangesTruncated: true} : {})});
+  }
+  return JSON.stringify(hits);
+}
+const matchingScript = new Script(`(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-matcher-v1.7.vm.js'});
+const fuzzyMatchingScript = new Script(`(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges)`, {filename: 'session-search-fuzzy-v1.7.vm.js'});
 function matchDocuments(documents, spec) {
   try {
     // One deadline covers the complete per-session document list, NOT one
     // budget per candidate or exec call. No regex executes outside this VM.
-    return JSON.parse(matchingScript.runInNewContext({documents, spec, maxSnippet: MAX_SNIPPET, maxRanges: MAX_RANGES},
+    const script = spec.fuzzy === 'off' ? matchingScript : fuzzyMatchingScript;
+    return JSON.parse(script.runInNewContext({documents, spec, maxSnippet: MAX_SNIPPET, maxRanges: MAX_RANGES},
       {timeout: MATCH_TIMEOUT_MS, contextCodeGeneration: {strings: false, wasm: false}}));
   } catch (error) {
     if (error?.code === 'ERR_SCRIPT_EXECUTION_TIMEOUT') {
@@ -103,13 +265,20 @@ export async function search(services, input, signal = new AbortController().sig
   const matchCase = flag(input.matchCase, 'matchCase');
   const wholeWord = flag(input.wholeWord, 'wholeWord');
   const useRegex = flag(input.useRegex, 'useRegex');
+  if (input.fuzzy === null) throw new Error('Invalid fuzzy mode');
+  const fuzzy = choice(input.fuzzy, 'off', ['off', 'typo', 'subsequence'], 'fuzzy mode');
+  if (useRegex && fuzzy !== 'off') throw new Error('useRegex cannot be combined with fuzzy matching. Set fuzzy to off.');
   const content = choice(input.content, 'final', ['final', 'all'], 'content mode');
   const order = choice(input.order, 'newest', ['newest', 'oldest'], 'result order');
-  const options = {includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex};
+  const options = {includeSubagents, includeArchived, content, order, matchCase, wholeWord, useRegex, fuzzy};
   const query = action !== 'sessions' ? string(input.query, 'query') : undefined;
+  if (fuzzy !== 'off' && query !== undefined) {
+    if (Array.from(query).length > 128) throw new Error('Fuzzy query must contain at most 128 Unicode code points.');
+    if ((query.match(/[\p{L}\p{N}_]+/gu) || []).length > 16) throw new Error('Fuzzy query must contain at most 16 word terms (Unicode letters, numbers, or underscore).');
+  }
   const sessionId = input.sessionId === undefined ? undefined : string(input.sessionId, 'sessionId', 512);
   const workspaceId = input.workspaceId === undefined ? undefined : string(input.workspaceId, 'workspaceId', 512);
-  const key = digest(['v1.6', action, query, sessionId, workspaceId, options]);
+  const key = digest(['v1.7', action, query, sessionId, workspaceId, options]);
   let cursor;
   if (input.cursor !== undefined) {
     try {
@@ -117,7 +286,7 @@ export async function search(services, input, signal = new AbortController().sig
       if (cursor.key !== key || !Number.isSafeInteger(cursor.offset) || cursor.offset < 0 || typeof cursor.version !== 'string') throw new Error();
     } catch {throw new Error('Invalid search cursor. Search again.');}
   }
-  const spec = {query, matchCase, wholeWord, useRegex};
+  const spec = {query, matchCase, wholeWord, useRegex, fuzzy};
   // Validate even with an empty/excluded corpus, before any service reads.
   if (action !== 'sessions') matchDocuments([], spec);
   const {items: rows, workspaces} = await catalog(services, options, signal);
