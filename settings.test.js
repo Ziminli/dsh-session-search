@@ -6,7 +6,7 @@ import {apply} from './index.js';
 import {Config, validateSettings, createSettingsOperation} from './settings.js';
 function fixture(admission = {peer: {principal: {kind: 'owner'}}}) {
   const routes = new Map(), tools = new Map(); let service;
-  const entry = {options: {id: 'search', name: 'dsh-session-search'}, fiber: {uid: 7, config: {searchMode: 'live'}}};
+  const entry = {options: {id: 'search', name: '@lizimin/dsh-session-search'}, fiber: {uid: 7, config: {searchMode: 'live'}}};
   const state = {writes: 0, fail: false};
   const ctx = {fiber: {uid: 7}, configEditor: {entries: () => [entry], async edit(current, change) {
     assert.equal(current, entry);

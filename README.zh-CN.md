@@ -32,6 +32,17 @@
 
 ## 安装
 
+### npm 作用域发行包
+
+本 npm 发行包为 **`@lizimin/dsh-session-search`**，源码仓库仍为 Ziminli/dsh-session-search。在 DSH 的**插件 → 添加插件**中输入：
+
+```text
+@lizimin/dsh-session-search
+```
+
+使用 DSH CLI 时可运行 `dsh plugin --profile <你的配置档> add @lizimin/dsh-session-search`。这是 DSH 插件包，不是独立搜索命令。不要与无作用域 GitHub/本地副本同时启用；它们共享路由、工具、服务及界面槽位。本发行包已同步作用域包名、Cordis 行、客户端模块和设置目标，搜索行为与 v1.3.6 相同。
+
+
 ### DSH 桌面版
 
 1. 打开**插件 → 添加插件**（或**安装第三方插件**）。

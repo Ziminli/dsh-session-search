@@ -1,5 +1,5 @@
 {
-  "name": "dsh-session-search",
+  "name": "@lizimin/dsh-session-search",
   "version": "1.3.6",
   "description": "Search stored DSH conversation text across all or selected workspaces and sessions, with exact, regular-expression, typo-tolerant or word-internal subsequence matching.",
   "type": "module",
@@ -10,9 +10,18 @@
     "url": "git+https://github.com/Ziminli/dsh-session-search.git"
   },
   "homepage": "https://github.com/Ziminli/dsh-session-search#readme",
-  "bugs": {"url": "https://github.com/Ziminli/dsh-session-search/issues"},
-  "keywords": ["dsh-plugin", "dsh", "session-search", "conversation-search"],
-  "engines": {"node": ">=22"},
+  "bugs": {
+    "url": "https://github.com/Ziminli/dsh-session-search/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "session-search",
+    "conversation-search"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -40,11 +49,20 @@
     "test": "node --test search.test.js fuzzy.test.js filters.test.js settings.test.js client-logic.test.js highlight.test.js"
   },
   "dsh": {
-    "bundle": {"patch": "./cordis.patch.yml"},
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-plugin-manager"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ]
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

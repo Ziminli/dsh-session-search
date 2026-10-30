@@ -32,6 +32,17 @@ Development reference: **DSH Desktop runtime 0.2.1-rc.3**. This is not a guarant
 
 ## Installation
 
+### Scoped npm distribution
+
+This npm distribution is **`@lizimin/dsh-session-search`**, from the same Ziminli/dsh-session-search repository. In DSH's **Plugins → Add plugin**, enter:
+
+```text
+@lizimin/dsh-session-search
+```
+
+For DSH CLI profiles: `dsh plugin --profile <your-profile> add @lizimin/dsh-session-search`. This package is a DSH bundle, not a standalone search command. Do not activate it alongside the unscoped GitHub/local variant: they share routes, tools, service and UI slots. The scope-specific package, Cordis row, client module and settings targets are aligned; search behavior is unchanged from v1.3.6.
+
+
 ### DSH Desktop
 
 1. Open **Plugins → Add plugin** (or **Install a third-party plugin**).

@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-session-search',
+  id: '@lizimin/dsh-session-search',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
@@ -175,7 +175,7 @@ window.__ModuleLoader__.load({
     function openPluginSettings(ctx) {
       const navigation = ctx.get('pluginNavigation');
       if (typeof navigation?.openBundle !== 'function') return false;
-      navigation.openBundle('dsh-session-search');
+      navigation.openBundle('@lizimin/dsh-session-search');
       return true;
     }
     // Parse date inputs as browser-local calendar dates, never UTC date-only strings.
@@ -1006,7 +1006,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('main', () => ctx.slots.register({name: 'main', key: PANEL}, SearchPage));
         // Highlight shell registration exists only for a live highlight intent;
         // clearing it restores the untouched resident Conversation entry.
-        ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({name: 'plugins.bundle.config', key: 'dsh-session-search', locale: NS}, SettingsForm));
+        ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({name: 'plugins.bundle.config', key: '@lizimin/dsh-session-search', locale: NS}, SettingsForm));
       }
     };
   }

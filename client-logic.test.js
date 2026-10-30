@@ -18,7 +18,7 @@ test('settings shortcut opens this exact bundle without changing session or conf
     assert.equal(name, 'pluginNavigation');
     return {openBundle: name => calls.push(name)};
   }}), true);
-  assert.deepEqual(calls, ['dsh-session-search']);
+  assert.deepEqual(calls, ['@lizimin/dsh-session-search']);
 });
 
 test('missing settings navigation fails explicitly and navigation exceptions remain observable', () => {

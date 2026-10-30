@@ -18,7 +18,7 @@ export function createSettingsOperation(ctx, config) {
   const entry = () => {
     const entries = ctx.configEditor.entries();
     entryId ??= entries.find(item => item.fiber?.uid === ctx.fiber.uid)?.options.id;
-    const found = entries.find(item => item.options.id === entryId && item.options.name === 'dsh-session-search');
+    const found = entries.find(item => item.options.id === entryId && item.options.name === '@lizimin/dsh-session-search');
     if (!found) throw new Error('Session Search configuration is unavailable');
     return found;
   };
