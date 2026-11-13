@@ -42,7 +42,7 @@ const icon = await readFile(new URL('icon.svg', root), 'utf8');
 assert.match(icon, /<svg\s/); assert.match(icon, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
 assert.ok(Buffer.byteLength(icon) <= 256 * 1024);
 assert.match(await readFile(new URL('LICENSE', root), 'utf8'), /Copyright \(c\) 2026 Zimin Li/);
-assert.equal((await readFile(new URL('cordis.patch.yml', root), 'utf8')).trim(), '- insert:\n    - id: local-session-search\n      name: @lizimin/dsh-session-search');
+assert.equal((await readFile(new URL('cordis.patch.yml', root), 'utf8')).trim(), "- insert:\n    - id: local-session-search\n      name: '@lizimin/dsh-session-search'");
 const client = await readFile(new URL('client.js', root), 'utf8');
 assert.match(client, /id: '@lizimin\/dsh-session-search'/);
 assert.ok(client.includes("navigation.openBundle('@lizimin/dsh-session-search')"));
