@@ -4,6 +4,12 @@ All package version changes must have an entry here before release. Entries are 
 
 Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
 
+## [1.3.7] - 2026-11-17
+
+### Fixed / 修复
+- Quote the scoped package name in `cordis.patch.yml` so the bundle patch is valid YAML. The previous unquoted `@lizimin/dsh-session-search` value was rejected by js-yaml, which made DSH roll the installation back and broke `dsh plugin add @lizimin/dsh-session-search` from the npm package. / 在 `cordis.patch.yml` 中为作用域包名加引号，使 bundle patch 成为合法 YAML。此前未加引号的 `@lizimin/dsh-session-search` 会被 js-yaml 拒绝，导致 DSH 回滚安装，使 npm 包的 `dsh plugin add @lizimin/dsh-session-search` 安装失败。
+- Align the package identity, Cordis row, client module and settings lookup with the published scoped npm name `@lizimin/dsh-session-search`. The unscoped GitHub tag tarball remains a separate variant and must not be enabled at the same time. / 包身份、Cordis 行、客户端模块与设置项均与已发布的作用域 npm 包名 `@lizimin/dsh-session-search` 对齐；无作用域 GitHub 标签 tarball 仍为独立变体，不可同时启用。
+
 ## [1.3.6] - 2026-10-28
 
 ### Added / 新增
