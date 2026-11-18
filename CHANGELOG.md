@@ -4,6 +4,11 @@ All package version changes must have an entry here before release. Entries are 
 
 Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
 
+## [1.4.1] - 2026-11-18
+
+### Documentation / 文档
+- Document the HTTP route admission guards in both READMEs: every route runs `ctx.connection.admit()` before any work (Host/Origin fence, signed credential, owner peer), verified live against the running GUI. The community catalog's "HTTP routes lack DSH access checks" note was incorrect — the guard has shipped since v1.0.0 and is covered by the `signed-owner HTTP guard` test. / 在两份 README 中补充 HTTP 路由准入防护说明：每个路由在做任何事之前都经 `ctx.connection.admit()` 检查（Host/Origin 防栏、签名凭据、owner 身份），并已在运行中的 GUI 实测验证。社区目录中"HTTP 路由缺少 DSH 访问检查"的说法不实——该防护自 v1.0.0 起随每个版本发布，并由 `signed-owner HTTP guard` 测试覆盖。
+
 ## [1.4.0] - 2026-11-18
 
 ### Added / 新增

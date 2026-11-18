@@ -6,7 +6,7 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.4.0.**
+An independent community plugin, not an official DSH package. **Package version: 1.4.1.**
 
 ## Features
 
@@ -128,6 +128,16 @@ Options: `query`, `workspaceIds` (up to 200 IDs), `sessionIds` (up to 1,000 IDs)
 ## Privacy and safety
 
 Search operates locally in the current DSH profile. It does not edit, resume, restore or delete conversations. The HTTP endpoint requires DSH owner authentication and disables response caching. Snippets render as text, not session-supplied HTML; regex matching is bounded on the Host rather than executed in the browser.
+
+### HTTP route security
+
+Every HTTP route (`/api/local-session-search`, `/api/local-session-search-highlight`, `/api/local-session-search-settings`) passes each request through `ctx.connection.admit({headers})` — the same admission path DSH applies to its own `/api` bridge — before doing any work, and then requires an `owner` peer:
+
+- DSH's Host/Origin fence refuses DNS-rebinding and cross-site requests (`403`).
+- A request must carry the host's signed browser-session cookie or a signed API credential; anonymous requests get `401`.
+- Authenticated non-owner peers get `403`.
+
+A web page open in your browser therefore cannot call these routes, and neither can any local process without the owner credential. The `401`/`403` paths are covered by the `signed-owner HTTP guard` test; this guard has shipped in every release since v1.0.0.
 
 Results can contain sensitive titles, IDs, paths, prompts, tool output and stored reasoning. **Agent-tool results may enter model context and be sent to the configured provider.** Queries may appear in request logs. Review results before sharing; never put private histories or credentials in issue reports.
 
