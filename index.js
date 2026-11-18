@@ -1,6 +1,7 @@
-import {search, highlightText} from './search.js';
+import {search, highlightText, createSessionCache} from './search.js';
 import {createSettingsOperation, readSettingsBody} from './settings.js';
 export {Config} from './settings.js';
+export {createSessionCache, CACHE_MAX_CHARS, SCAN_MAX_CHARS} from './search.js';
 export const inject = ['sessionQuery', 'sessionController', 'workspaceController', 'connection', 'webServer', 'tools', 'configEditor'];
 const MAX_HIGHLIGHT_BODY_BYTES = 2 * 1024 * 1024;
 async function readHighlightBody(req) {
@@ -18,7 +19,11 @@ async function readHighlightBody(req) {
   try {return JSON.parse(Buffer.concat(chunks).toString('utf8'));} catch {throw new Error('Invalid highlight JSON');}
 }
 export function apply(ctx, config) {
-  const operation = (input, signal) => search(ctx, input, signal);
+  // One cache for the plugin's lifetime: repeat content searches reuse the
+  // projected documents of unchanged cold sessions instead of re-reading and
+  // re-parsing every log (issue #3 Host OOM on large profiles).
+  const cache = createSessionCache();
+  const operation = (input, signal) => search(ctx, input, signal, cache);
   const settings = createSettingsOperation(ctx, config);
   ctx.effect(() => ctx.provide('localSessionSearch', {search: operation, settings}));
   ctx.effect(() => ctx.webServer.register({kind: 'exact', path: '/api/local-session-search-settings', async handler(req, res) {

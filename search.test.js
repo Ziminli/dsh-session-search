@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {performance} from 'node:perf_hooks';
 import {createHash} from 'node:crypto';
-import {search, workspaceCatalog, UNGROUPED_WORKSPACE_ID, finalDocuments, processDocuments, LIMIT, MATCH_TIMEOUT_MS, MAX_SNIPPET, MAX_RANGES} from './search.js';
+import {search, workspaceCatalog, UNGROUPED_WORKSPACE_ID, finalDocuments, processDocuments, LIMIT, MATCH_TIMEOUT_MS, MAX_SNIPPET, MAX_RANGES, createSessionCache} from './search.js';
 import {apply} from './index.js';
 const text = text => ({type: 'text', text});
 const event = (type, seq, data, time = seq) => ({type, seq, time, data});
@@ -13,7 +13,7 @@ function turn(n, value = 'needle', time = n * 10) {
     event('turn/end', n * 4 + 2, {turn: n, reason: {kind: 'completed'}})];
 }
 const row = (sessionId, updatedAt, extra = {}) => ({sessionId, updatedAt, blank: false, projections: {values: {title: `Title ${sessionId}`}}, ...extra});
-function fixture(rows = [row('s', 20)], logs = {s: turn(1)}, archives = [], workspaces = []) {
+function fixture(rows = [row('s', 20)], logs = {s: turn(1)}, archives = [], workspaces = [], meta = {}) {
   const state = {closed: 0, disposed: 0, reads: [], catalogs: 0};
   return {state,
     sessionController: {list: async (_input, signal) => {state.catalogs++; signal.throwIfAborted(); return {items: rows};}},
@@ -21,7 +21,13 @@ function fixture(rows = [row('s', 20)], logs = {s: turn(1)}, archives = [], work
     sessionQuery: {
       listSessions: async () => [],
       readTitleSnapshots: async ids => ids.map(sessionId => ({sessionId, status: 'fulfilled', value: {}})),
-      observeSession: async id => {state.reads.push(id); if (logs[id] instanceof Error) throw logs[id]; return {events: logs[id] || [], [Symbol.dispose]: () => state.disposed++};},
+      observeSession: async id => {state.reads.push(id); if (logs[id] instanceof Error) throw logs[id];
+        // Mirror the Host contract: cold prepared observations carry a durable
+        // persistence revision, live ones do not. Liveness stays mutable so a
+        // test can flip a session live/cold between queries.
+        const isLive = (meta.live || []).includes(id);
+        return {source: isLive ? 'live' : 'prepared', ...(isLive ? {} : {revision: (meta.revisions || {})[id] ?? 1}),
+          cursor: -1, inheritedEventCount: 0, events: logs[id] || [], [Symbol.dispose]: () => state.disposed++};},
     }};
 }
 const workspace = (workspaceId, sessionIds = [], path = `/work/${workspaceId}`) => ({workspaceId, sessionIds, path, title: `Workspace ${workspaceId}`, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z'});
@@ -465,4 +471,103 @@ test('HTTP/tool syntax and timeout errors have parity and never return partial h
   const timeout = await request(bad.route, 'GET', `/api/local-session-search?${new URLSearchParams({query: '(a+)+$', useRegex: true})}`);
   assert.equal(timeout.code, 400); assert.equal(timeout.body.code, 'SEARCH_MATCH_TIMEOUT'); assert.equal(timeout.body.items, undefined);
   await assert.rejects(bad.tool.execute({query: '(a+)+$', useRegex: true}, {signal: new AbortController().signal}), error => error.code === timeout.body.code);
+});
+test('cross-query cache reuses unchanged cold sessions with byte-identical results', async () => {
+  const f = fixture([row('a', 30), row('b', 20)], {a: turn(1), b: turn(2, 'needle needle')});
+  const cache = createSessionCache();
+  const first = await search(f, {query: 'needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'b']); assert.equal(first.scanned, 2);
+  assert.equal(first.scanTruncated, undefined);
+  const second = await search(f, {query: 'needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'b']); // zero re-reads
+  assert.deepEqual(second, first);
+  assert.equal(cache.stats().entries, 2); assert.ok(cache.stats().chars > 0);
+  // A different query reuses the same projections, only matching differs.
+  const third = await search(f, {query: 'needle needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'b']); assert.deepEqual(ids(third), ['b']);
+  // Groups and pagination ride the same cache.
+  const groups = await search(f, {action: 'groups', query: 'needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'b']); assert.equal(groups.totalMatches, 2);
+});
+test('cache keys content modes and invalidates on catalog stamp changes', async () => {
+  const rows = [row('a', 30)], logs = {a: turn(1)};
+  const f = fixture(rows, logs), cache = createSessionCache();
+  await search(f, {query: 'needle', content: 'final'}, undefined, cache);
+  await search(f, {query: 'needle', content: 'all'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'a']); // separate cache entry per content mode
+  assert.equal(cache.stats().entries, 2);
+  await search(f, {query: 'needle', content: 'all'}, undefined, cache);
+  assert.equal(f.state.reads.length, 2);
+  rows[0].updatedAt = 40; // new prompt moves the catalog stamp
+  await search(f, {query: 'needle', content: 'all'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'a', 'a']);
+  rows[0].formatStatus = 'v2-migrated'; // persistence migration moves the stamp too
+  await search(f, {query: 'needle', content: 'all'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'a', 'a', 'a']);
+  await search(f, {query: 'needle', content: 'all'}, undefined, cache);
+  assert.equal(f.state.reads.length, 4); // revalidated stamp is cacheable again
+});
+test('live rows bypass the cache and live observations drop their entries', async () => {
+  const rows = [row('a', 30)], meta = {live: []};
+  const f = fixture(rows, {a: turn(1)}, [], [], meta), cache = createSessionCache();
+  await search(f, {query: 'needle'}, undefined, cache); // cold: seed the entry
+  assert.equal(cache.stats().entries, 1);
+  rows[0].running = true; meta.live.push('a'); // Host row reports live AND observation reports live
+  await search(f, {query: 'needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'a']); // row liveness bypassed a still-valid entry
+  assert.equal(cache.stats().entries, 0); // the live observation dropped it
+  rows[0].running = false; // row cold again, but the session is still live in the Host
+  await search(f, {query: 'needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'a', 'a']); assert.equal(cache.stats().entries, 0);
+  meta.live.length = 0; // genuinely cold now: this read seeds a fresh entry
+  await search(f, {query: 'needle'}, undefined, cache);
+  await search(f, {query: 'needle'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['a', 'a', 'a', 'a']); assert.equal(cache.stats().entries, 1);
+});
+test('cache caps oversized sessions and evicts least-recently-used under budget', async () => {
+  const logs = {big: turn(1, `needle ${'x'.repeat(400)}`), p: turn(2, 'needle pqr'), q: turn(3, 'needle pqr'), r: turn(4, 'needle pqr')};
+  const f = fixture([row('big', 40), row('p', 30), row('q', 20), row('r', 10)], logs);
+  const cache = createSessionCache(21); // entry cap = min(8 MiB, 21); each small session projects to 10 chars
+  await search(f, {query: 'needle', sessionId: 'p'}, undefined, cache);
+  await search(f, {query: 'needle', sessionId: 'q'}, undefined, cache);
+  assert.deepEqual(f.state.reads, ['p', 'q']);
+  const first = await search(f, {query: 'needle'}, undefined, cache);
+  assert.equal(first.total, 4); // big still matches, it is only never cached
+  assert.deepEqual(f.state.reads, ['p', 'q', 'big', 'r']); // p+q from cache; big over entry cap; r admitted
+  assert.deepEqual(cache.stats(), {entries: 2, chars: 20}); // admitting r evicted least-recently-used p
+  await search(f, {query: 'needle', sessionId: 'q'}, undefined, cache); // q still resident
+  assert.deepEqual(f.state.reads, ['p', 'q', 'big', 'r']);
+  await search(f, {query: 'needle', sessionId: 'p'}, undefined, cache); // p was evicted for r
+  assert.deepEqual(f.state.reads, ['p', 'q', 'big', 'r', 'p']);
+  cache.clear(); assert.deepEqual(cache.stats(), {entries: 0, chars: 0});
+});
+test('scan budget truncates fresh scans honestly instead of exhausting memory', async () => {
+  const f = fixture([row('a', 30), row('b', 20), row('c', 10)], {a: turn(1, `needle ${'a'.repeat(80)}`), b: turn(2), c: turn(3)});
+  const cache = createSessionCache();
+  const result = await search(f, {query: 'needle'}, undefined, cache, {scanMaxChars: 20});
+  assert.equal(result.scanTruncated, true); assert.equal(result.scanned, 1);
+  assert.deepEqual(ids(result), ['a']); // a's projection (87 chars) exhausted the budget before b
+  assert.deepEqual(f.state.reads, ['a']);
+  const full = await search(f, {query: 'needle'}, undefined, createSessionCache());
+  assert.equal(full.scanTruncated, undefined); assert.equal(full.scanned, 3); assert.equal(full.total, 3);
+  // Cached sessions never consume scan budget: the truncated pass left a
+  // resident, so the same tiny budget now affords fresh reads of b and c
+  // (the intervening full scan used its own cache and read them once more).
+  const repeat = await search(f, {query: 'needle'}, undefined, cache, {scanMaxChars: 20});
+  assert.equal(repeat.scanTruncated, undefined); assert.equal(repeat.scanned, 3); assert.equal(repeat.total, 3);
+  assert.deepEqual(f.state.reads, ['a', 'a', 'b', 'c', 'b', 'c']); // full used its own cache, repeat re-read only b and c
+});
+test('fuzzy and exact queries return identical results with and without cache', async () => {
+  const logs = {a: [...turn(1, 'needle'), ...turn(2, 'NeedLEs everywhere')], b: turn(3, 'neadles')};
+  for (const options of [{}, {fuzzy: 'off'}, {matchCase: true}, {fuzzy: 'off', useRegex: true, query: 'n[e]'}, {wholeWord: true, fuzzy: 'typo'}]) {
+    const plain = fixture([row('a', 30), row('b', 20)], JSON.parse(JSON.stringify(logs)));
+    const cached = fixture([row('a', 30), row('b', 20)], JSON.parse(JSON.stringify(logs)));
+    const cache = createSessionCache();
+    const input = {query: 'needle', ...options};
+    const fresh = await search(plain, input);
+    const once = await search(cached, input, undefined, cache);
+    const twice = await search(cached, input, undefined, cache);
+    assert.deepEqual(once, fresh); assert.deepEqual(twice, fresh);
+    assert.deepEqual(cached.state.reads, ['a', 'b']);
+  }
 });

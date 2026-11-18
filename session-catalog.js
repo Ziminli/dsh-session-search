@@ -90,6 +90,12 @@ export async function catalog(services, input, signal) {
     return {sessionId: row.sessionId, title: (row.projections?.values?.title ?? titles.get(row.sessionId))?.trim() || '', updatedAt: row.updatedAt,
       cwd: row.cwd || '', archived: archived.has(row.sessionId), subagent: row.origin === 'subagent',
       workspaceId: workspace.workspaceId, workspaceTitle: workspace.title, workspacePath: workspace.path,
+      // Pass through the Host's liveness and persistence-migration signals:
+      // the search cache refuses to serve sessions the Host reports live and
+      // revalidates entries when a persistence migration changes formatStatus.
+      ...(row.running !== undefined ? {running: row.running} : {}),
+      ...(row.agentAvailable !== undefined ? {agentAvailable: row.agentAvailable} : {}),
+      ...(row.formatStatus !== undefined ? {formatStatus: row.formatStatus} : {}),
       ...(row.parentSessionId ? {parentSession: row.parentSessionId} : {})};
   });
   return {items, workspaces};

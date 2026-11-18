@@ -68,8 +68,7 @@ function compileMatchPattern(spec) {
   const bounded = spec.wholeWord ? `(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])` : source;
   return spec.wholeWord ? new RegExp(bounded, flags) : rawPattern;
 }
-function matchDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument) {
-  const pattern = compileMatchPattern(spec);
+function matchDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument, pattern) {
   const hits = [];
   let totalRanges = 0, truncated = false;
   for (const doc of documents) {
@@ -121,36 +120,18 @@ function matchDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument)
 // and snippet work run within the SAME per-session VM deadline; none run in the
 // service/catalog loop. Literal presence is independent of fuzzy candidates:
 // exact substrings can exist even when a whole candidate word is not a fuzzy hit.
-function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument) {
-  const exactPattern = compileMatchPattern(spec);
+// The per-QUERY compilation (exact pattern, token stream, case-folding table)
+// is hoisted to compileFuzzyTable and built once per search, not once per
+// session; only per-session matching work runs under the VM deadline.
+function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges, fullDocument, fuzzy) {
+  const exactPattern = fuzzy.exactPattern;
   let hasExactMatches = false;
   if (!fullDocument) for (const doc of documents) {
     exactPattern.lastIndex = 0;
     if (exactPattern.test(doc.text)) {hasExactMatches = true; break;}
   }
-  const wordCharacter = /[\p{L}\p{N}_]/u;
-  const wordAt = /[\p{L}\p{N}_]+/uy;
-  const spaceAt = /\s+/uy;
-  const characters = new Map();
-  function comparable(character) {
-    if (spec.matchCase) return candidate => candidate === character;
-    // Unicode simple case folding, like the exact /iu branch. Folding a whole
-    // string with toLowerCase() can expand İ and corrupt both matching/offsets.
-    if (!characters.has(character)) {
-      const escaped = character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`^(?:${escaped})$`, 'iu');
-      characters.set(character, candidate => pattern.test(candidate));
-    }
-    return characters.get(character);
-  }
-  const tokens = Array.from(spec.query.trim().matchAll(/[\p{L}\p{N}_]+|\s+|[^\p{L}\p{N}_\s]/gu), match => {
-    const value = match[0];
-    if (/^\s/u.test(value)) return {kind: 'space'};
-    if (!wordCharacter.test(value)) return {kind: 'literal', value};
-    const points = Array.from(value);
-    return {kind: 'word', length: points.length, equal: points.map(comparable),
-      edits: points.length <= 3 ? 0 : points.length <= 7 ? 1 : 2};
-  });
+  const wordCharacter = fuzzy.wordCharacter, wordAt = fuzzy.wordAt, spaceAt = fuzzy.spaceAt;
+  const characters = fuzzy.characters, comparable = fuzzy.comparable, tokens = fuzzy.tokens;
   function wordMatch(token, value, offset) {
     const limit = spec.fuzzy === 'typo' ? token.length + token.edits : 4 * token.length + 8;
     // Reject enormous candidate words before allocating a code-point array.
@@ -293,14 +274,60 @@ function matchFuzzyDocumentList(documents, spec, maxSnippet, maxRanges, fullDocu
   }
   return JSON.stringify(fullDocument ? {items: hits, ...(truncated ? {truncated: true} : {})} : {hits, hasExactMatches});
 }
-const matchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges, fullDocument)`, {filename: 'session-search-matcher-v1.7.vm.js'});
-const fuzzyMatchingScript = new Script(`${compileMatchPattern.toString()}\n(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges, fullDocument)`, {filename: 'session-search-fuzzy-v1.7.vm.js'});
-function matchDocuments(documents, spec, fullDocument) {
+// Per-QUERY fuzzy compilation: exact pattern, token stream, and the Unicode
+// case-folding table depend only on `spec`, never on a session's documents, so
+// they are built once per search in the host context instead of once per
+// session inside the VM. The closures are shared read-only; sticky regexes are
+// always re-anchored before use, and VM runs are synchronous, so interleaved
+// concurrent searches cannot observe torn state.
+function compileFuzzyTable(spec, exactPattern) {
+  const wordCharacter = /[\p{L}\p{N}_]/u;
+  const wordAt = /[\p{L}\p{N}_]+/uy;
+  const spaceAt = /\s+/uy;
+  const characters = new Map();
+  function comparable(character) {
+    if (spec.matchCase) return candidate => candidate === character;
+    // Unicode simple case folding, like the exact /iu branch. Folding a whole
+    // string with toLowerCase() can expand İ and corrupt both matching/offsets.
+    if (!characters.has(character)) {
+      const escaped = character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`^(?:${escaped})$`, 'iu');
+      characters.set(character, candidate => pattern.test(candidate));
+    }
+    return characters.get(character);
+  }
+  const tokens = Array.from(spec.query.trim().matchAll(/[\p{L}\p{N}_]+|\s+|[^\p{L}\p{N}_\s]/gu), match => {
+    const value = match[0];
+    if (/^\s/u.test(value)) return {kind: 'space'};
+    if (!wordCharacter.test(value)) return {kind: 'literal', value};
+    const points = Array.from(value);
+    return {kind: 'word', length: points.length, equal: points.map(comparable),
+      edits: points.length <= 3 ? 0 : points.length <= 7 ? 1 : 2};
+  });
+  return {exactPattern, wordCharacter, wordAt, spaceAt, characters, comparable, tokens};
+}
+// Compile everything a query needs before any service read, so an invalid
+// expression fails fast with the same error either path would have produced,
+// and per-session VM work never recompiles query-wide state.
+function compileMatchers(spec) {
+  try {
+    const pattern = compileMatchPattern(spec);
+    return {pattern, fuzzy: spec.fuzzy === 'off' ? undefined : compileFuzzyTable(spec, pattern)};
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new SearchMatchError(`Invalid regular expression: ${error.message}`, 'INVALID_REGEX');
+    throw error;
+  }
+}
+const matchingScript = new Script(`(${matchDocumentList.toString()})(documents, spec, maxSnippet, maxRanges, fullDocument, pattern)`, {filename: 'session-search-matcher-v1.8.vm.js'});
+const fuzzyMatchingScript = new Script(`(${matchFuzzyDocumentList.toString()})(documents, spec, maxSnippet, maxRanges, fullDocument, fuzzy)`, {filename: 'session-search-fuzzy-v1.8.vm.js'});
+function matchDocuments(documents, spec, fullDocument, pattern, fuzzy) {
   try {
     // One deadline covers the complete per-session document list, NOT one
     // budget per candidate or exec call. No regex executes outside this VM.
     const script = spec.fuzzy === 'off' ? matchingScript : fuzzyMatchingScript;
-    return JSON.parse(script.runInNewContext({documents, spec, fullDocument, maxSnippet: MAX_SNIPPET,
+    return JSON.parse(script.runInNewContext({documents, spec, fullDocument,
+      ...(spec.fuzzy === 'off' ? {pattern} : {fuzzy}),
+      maxSnippet: MAX_SNIPPET,
       maxRanges: fullDocument ? MAX_HIGHLIGHT_RANGES : MAX_RANGES},
       {timeout: MATCH_TIMEOUT_MS, contextCodeGeneration: {strings: false, wasm: false}}));
   } catch (error) {
@@ -310,6 +337,69 @@ function matchDocuments(documents, spec, fullDocument) {
     if (error?.name === 'SyntaxError') throw new SearchMatchError(`Invalid regular expression: ${error.message}`, 'INVALID_REGEX');
     throw new SearchMatchError(`Search matching failed: ${error instanceof Error ? error.message : String(error)}`, 'SEARCH_MATCH_FAILED');
   }
+}
+
+// Cross-query cache of PROJECTED documents, never of raw events. The DSH Host
+// retains only a handful of cold prepared observations (SESSION_QUERY_DEFAULT_
+// PREPARED_SESSION_CACHE_SIZE = 5), so sequential content scans over hundreds
+// of sessions re-read and re-parse nearly every log on EVERY query — with the
+// 300ms live-search debounce this multiplies transient heap until the Host
+// process dies. Caching the projection (text documents, one entry per session
+// and content mode) keyed by the catalog's cheap row stamp keeps repeat scans
+// off the engine entirely.
+//
+// Freshness contract, verified against dsh-session-query@0.2.2-rc.3:
+// - `SessionObservation.revision` (the durable persistence revision) exists
+//   ONLY on cold prepared observations, and no cheap per-session probe exposes
+//   it without paying for the read, so it cannot validate entries between
+//   queries. It is recorded for drift detection whenever an observation
+//   happens anyway.
+// - Rows currently live in the Host (`running`/`agentAvailable`) are never
+//   served from cache and always observed; a live observation drops the
+//   session's entry. DSH appends (replies, compaction, pruning) happen on live
+//   sessions, so a COLD session's log cannot change underneath the stamp.
+// - The stamp pairs the catalog row's `updatedAt` (latest prompt time) with
+//   `formatStatus`; any new prompt or persistence migration changes it.
+// - Residual gap: hand-edited session files on disk while cold. DSH's own FTS
+//   catches that via stat revisions; we accept and document it.
+export const CACHE_MAX_CHARS = 32 * 1024 * 1024;
+export const SCAN_MAX_CHARS = 256 * 1024 * 1024;
+const CACHE_ENTRY_MAX_CHARS = CACHE_MAX_CHARS >> 2;
+const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve));
+const documentsChars = documents => {let chars = 0; for (const document of documents) chars += document.text.length; return chars;};
+export function createSessionCache(maxChars = CACHE_MAX_CHARS) {
+  const entries = new Map(); // `${sessionId}\u0000${content}` → entry, LRU-ordered
+  let total = 0;
+  const stamp = row => `${row.updatedAt ?? 0}|${row.formatStatus ?? ''}`;
+  const forget = key => {const entry = entries.get(key); if (entry) {total -= entry.chars; entries.delete(key);}};
+  return {
+    get(row, content) {
+      const key = `${row.sessionId}\u0000${content}`;
+      const entry = entries.get(key);
+      // Reuse only while the cheap catalog stamp is unchanged; any mismatch
+      // falls through to a fresh observation, which repairs or drops the entry.
+      if (!entry || entry.stamp !== stamp(row)) return undefined;
+      entries.delete(key); entries.set(key, entry); // most-recently-used last
+      return entry.documents;
+    },
+    record(row, content, observation, documents) {
+      const key = `${row.sessionId}\u0000${content}`;
+      if (observation.source !== 'prepared' || observation.revision === undefined) {forget(key); return;}
+      forget(key); // replace on drift; the stamp below revalidates future reuse
+      const chars = documentsChars(documents);
+      // One oversized session must not flush the whole working set.
+      if (chars > Math.min(CACHE_ENTRY_MAX_CHARS, maxChars)) return;
+      entries.set(key, {documents, chars, stamp: stamp(row), revision: observation.revision,
+        cursor: observation.cursor, inheritedEventCount: observation.inheritedEventCount});
+      total += chars;
+      while (total > maxChars && entries.size > 1) {
+        const oldest = entries.keys().next().value;
+        forget(oldest);
+      }
+    },
+    clear() {entries.clear(); total = 0;},
+    stats() {return {entries: entries.size, chars: total};},
+  };
 }
 
 function matchOptions(input) {
@@ -343,10 +433,11 @@ export function highlightText(input) {
     if (size > MAX_HIGHLIGHT_TEXT) throw new Error(`texts exceed ${MAX_HIGHLIGHT_TEXT} UTF-16 code units`);
     return {text, index};
   });
-  return matchDocuments(documents, {query, ...options}, {maxTotalRanges: MAX_HIGHLIGHT_TOTAL_RANGES});
+  const matchers = compileMatchers({query, ...options});
+  return matchDocuments(documents, {query, ...options}, {maxTotalRanges: MAX_HIGHLIGHT_TOTAL_RANGES}, matchers.pattern, matchers.fuzzy);
 }
 
-export async function search(services, input, signal = new AbortController().signal) {
+export async function search(services, input, signal = new AbortController().signal, cache = undefined, limits = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Expected a search request');
   signal.throwIfAborted();
   const action = choice(input.action, 'search', ['sessions', 'search', 'groups'], 'action');
@@ -371,8 +462,11 @@ export async function search(services, input, signal = new AbortController().sig
     } catch {throw new Error('Invalid search cursor. Search again.');}
   }
   const spec = {query, matchCase, wholeWord, useRegex, fuzzy};
-  // Validate even with an empty/excluded corpus, before any service reads.
-  if (action !== 'sessions') matchDocuments([], spec);
+  // Compile the whole query (exact pattern plus fuzzy tables) once per
+  // search, before any service reads and before any per-session VM run.
+  // Sessions actions never match documents, so they skip compilation.
+  const matchers = action === 'sessions' ? undefined : compileMatchers(spec);
+  if (matchers) matchDocuments([], spec, undefined, matchers.pattern, matchers.fuzzy);
   const {items: rows, workspaces} = await catalog(services, options, signal);
   const workspaceSelection = new Set(workspaceIds), sessionSelection = new Set(sessionIds);
   const byWorkspace = new Map(workspaces.map(item => [item.workspaceId, item]));
@@ -393,25 +487,50 @@ export async function search(services, input, signal = new AbortController().sig
     sessionIds, workspaceIds, after: after ?? null, before: before ?? null};
   if (action === 'sessions') return {...scope, ...options, items: eligible};
   const items = [], warnings = [];
-  let hasExactMatches = false;
+  let hasExactMatches = false, scanned = 0, scanTruncated = false;
+  // Fresh reads materialize and parse whole session logs before projection;
+  // budget them per scan so a pathological profile truncates instead of
+  // exhausting Host heap. Cached projections cost nothing against the budget.
+  const {scanMaxChars = SCAN_MAX_CHARS} = limits;
+  let scannedChars = 0;
+  const applyProjection = (row, projected) => {
+    // Project full turns first: cutting events can erase a turn's completion
+    // or wrongly promote an earlier assistant message into its final reply.
+    // Filter before BOTH fuzzy exact-presence scans and hit aggregation.
+    const documents = bounded ? projected.filter(doc => Number.isSafeInteger(doc.time) && Math.abs(doc.time) <= MAX_DATE_MS &&
+      (after === undefined || doc.time >= after) && (before === undefined || doc.time < before)) : projected;
+    const matched = matchDocuments(documents, spec, undefined, matchers.pattern, matchers.fuzzy);
+    const hits = fuzzy === 'off' ? matched : matched.hits;
+    if (fuzzy !== 'off' && matched.hasExactMatches) hasExactMatches = true;
+    for (const hit of hits) items.push({...row, ...hit});
+  };
   for (const row of eligible) {
     signal.throwIfAborted();
     try {
-      const observation = await services.sessionQuery.observeSession(row.sessionId, {signal, projectionMode: 'none'});
-      try {
-        const project = content === 'final' ? finalDocuments : processDocuments;
-        const projected = project(observation.events, row.sessionId);
-        // Project full turns first: cutting events can erase a turn's completion
-        // or wrongly promote an earlier assistant message into its final reply.
-        // Filter before BOTH fuzzy exact-presence scans and hit aggregation.
-        const documents = bounded ? projected.filter(doc => Number.isSafeInteger(doc.time) && Math.abs(doc.time) <= MAX_DATE_MS &&
-          (after === undefined || doc.time >= after) && (before === undefined || doc.time < before)) : projected;
-        const matched = matchDocuments(documents, spec);
-        const hits = fuzzy === 'off' ? matched : matched.hits;
-        if (fuzzy !== 'off' && matched.hasExactMatches) hasExactMatches = true;
-        for (const hit of hits) items.push({...row, ...hit});
-      } finally {observation[Symbol.dispose]();}
-      signal.throwIfAborted();
+      // Live sessions are never served from cache and always observed fresh:
+      // DSH appends land on live sessions, so any cached projection of one is
+      // stale by definition.
+      const live = row.running === true || row.agentAvailable === true;
+      const cachedDocuments = live || !cache ? undefined : cache.get(row, content);
+      let projected = cachedDocuments;
+      if (projected) {
+        // Cache hit: the projection was validated against the catalog stamp.
+      } else {
+        if (scannedChars > scanMaxChars) {scanTruncated = true; break;}
+        const observation = await services.sessionQuery.observeSession(row.sessionId, {signal, projectionMode: 'none'});
+        try {
+          projected = (content === 'final' ? finalDocuments : processDocuments)(observation.events, row.sessionId);
+          // Cached documents are independent of the observation's lifetime.
+          if (cache) cache.record(row, content, observation, projected);
+        } finally {observation[Symbol.dispose]();}
+        scannedChars += documentsChars(projected);
+        // Breathing room between heavy reads keeps one long scan from
+        // starving the Host's event loop and lets aborts land promptly.
+        await yieldToEventLoop();
+        signal.throwIfAborted();
+      }
+      applyProjection(row, projected);
+      scanned++;
     } catch (error) {
       signal.throwIfAborted();
       // A pathological expression must stop ALL scopes, never silently hide
@@ -426,8 +545,11 @@ export async function search(services, input, signal = new AbortController().sig
   // Bind group cursors to the full hits too: changing a non-extremal matching
   // reply must invalidate a page even when its group's count/time is unchanged.
   const exactMetadata = fuzzy === 'off' ? {} : {hasExactMatches};
-  const version = digest(fuzzy === 'off' ? [items, warnings] : [items, warnings, exactMetadata]);
-  if (cursor && cursor.version !== version) throw new Error('History changed. Search again to refresh results.');
+  // The version digest hashes the complete hit set and only exists to bind
+  // page cursors; compute it lazily so cursor-less result pages never pay.
+  let versionDigest;
+  const version = () => versionDigest ??= digest(fuzzy === 'off' ? [items, warnings] : [items, warnings, exactMetadata]);
+  if (cursor && cursor.version !== version()) throw new Error('History changed. Search again to refresh results.');
   let results = items;
   if (action === 'groups') {
     const metadata = new Map(eligible.map(row => [row.sessionId, row]));
@@ -447,8 +569,9 @@ export async function search(services, input, signal = new AbortController().sig
   const offset = cursor?.offset ?? 0;
   if (offset > results.length) throw new Error('Invalid search cursor. Search again.');
   const end = offset + LIMIT;
-  return {...scope, query, ...options, ...exactMetadata, items: results.slice(offset, end), total: results.length, scanned: eligible.length,
+  return {...scope, query, ...options, ...exactMetadata, items: results.slice(offset, end), total: results.length, scanned,
+    ...(scanTruncated ? {scanTruncated: true} : {}),
     ...(action === 'groups' ? {totalMatches: items.length} : {}),
     ...(warnings.length ? {warnings} : {}),
-    ...(end < results.length ? {nextCursor: Buffer.from(JSON.stringify({key, version, offset: end})).toString('base64url')} : {})};
+    ...(end < results.length ? {nextCursor: Buffer.from(JSON.stringify({key, version: version(), offset: end})).toString('base64url')} : {})};
 }

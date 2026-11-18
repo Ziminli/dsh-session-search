@@ -4,6 +4,15 @@ All package version changes must have an entry here before release. Entries are 
 
 Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
 
+## [1.4.0] - 2026-11-18
+
+### Added / 新增
+- Cache projected documents across searches, per session and content mode, validated by the catalog stamp (`updatedAt` + `formatStatus`) and the Host's liveness signals. Repeat and refined content searches over large profiles no longer re-read and re-parse every session log per keystroke (issue #3: sequential scans of 400+ cold sessions hit a ~0% Host prepared-observation reuse rate and could exhaust the 4 GB Host heap). Sessions the Host reports live are always read fresh, and a live observation drops the session's cached entry. / 按会话与内容模式跨查询缓存投影文档，以目录行戳（`updatedAt` + `formatStatus`）与宿主活跃信号校验。大配置下反复/逐步细化内容搜索不再每次按键都重读并重解析全部会话日志（issue #3：400+ 冷会话的顺序扫描对宿主预备观察的复用率约为 0，可能耗尽 4 GB 宿主堆内存）。宿主报告为活跃的会话始终现读，活跃观察会丢弃该会话的缓存条目。
+- Add a per-scan fresh-read budget (`scanMaxChars`, default 256 MiB of projected text) with `scanTruncated` in the response when a pathological profile stops a scan early; cached sessions never consume the budget, so truncated scans still complete from cache on retry. Fresh reads now yield to the event loop between sessions. / 为每次扫描的新鲜读取加入预算（`scanMaxChars`，默认 256 MiB 投影文本），预算耗尽时响应带 `scanTruncated` 标记；缓存会话不消耗预算，被截断的扫描重试时仍可由缓存完成。会话间的新鲜读取现让出事件循环。
+
+### Changed / 变更
+- Compile the exact pattern and fuzzy folding tables once per query instead of once per session, and compute the cursor version digest only when a page cursor is actually issued, removing avoidable per-session work during long scans. / 精确匹配模式与模糊折叠表改为每次查询编译一次而非每会话一次；游标版本摘要仅在真正下发分页游标时计算，减少长扫描中的每会话开销。
+
 ## [1.3.7] - 2026-11-17
 
 ### Fixed / 修复
