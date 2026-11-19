@@ -6,7 +6,7 @@
 
 每个插件包版本的改动见双语[更新日志](<CHANGELOG.md>)。
 
-本项目为独立社区插件，并非 DSH 官方插件。**插件包版本：1.4.1。**
+本项目为独立社区插件，并非 DSH 官方插件。**插件包版本：1.4.2。**
 
 ## 功能
 
@@ -129,7 +129,7 @@
 
 ### HTTP 路由安全
 
-每个 HTTP 路由（`/api/local-session-search`、`/api/local-session-search-highlight`、`/api/local-session-search-settings`）在做任何事之前都先把请求交给 `ctx.connection.admit({headers})` —— 与 DSH 自己的 `/api` 桥相同的准入检查 —— 并要求 `owner` 身份：
+每个 HTTP 路由（`/api/local-session-search`、`/api/local-session-search-highlight`、`/api/local-session-search-settings`）的处理函数都以 DSH 规范防护 `const refused = ctx.connection.requestRejection(req)` 开头 —— 与 DSH 自己的 `/api` 桥相同的准入检查 —— 再通过 `ctx.connection.admit()` 要求 `owner` 身份：
 
 - DSH 的 Host/Origin 防栏拒绝 DNS 重绑定与跨站请求（`403`）。
 - 请求必须携带宿主签名的浏览器会话 Cookie 或签名 API 凭据；匿名请求得到 `401`。

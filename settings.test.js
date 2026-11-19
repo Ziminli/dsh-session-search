@@ -13,7 +13,7 @@ function fixture(admission = {peer: {principal: {kind: 'owner'}}}) {
     if (state.fail) throw new Error('Settings are read-only');
     const next = change(entry.fiber.config, {}); entry.fiber = {uid: 8, config: validateSettings(next)}; state.writes++;
   }}, effect: fn => fn(), provide: (_key, value) => {service = value; return () => {};},
-  connection: {admit: () => admission}, webServer: {register: route => {routes.set(route.path, route); return () => {};}}, tools: {register: tool => {tools.set(tool.name, tool); return () => {};}}};
+  connection: {admit: () => admission, requestRejection: () => 'rejection' in admission ? admission.rejection : undefined}, webServer: {register: route => {routes.set(route.path, route); return () => {};}}, tools: {register: tool => {tools.set(tool.name, tool); return () => {};}}};
   apply(ctx, {searchMode: 'live'});
   return {routes, tools, service, state, entry, ctx};
 }

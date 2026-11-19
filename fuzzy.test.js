@@ -43,7 +43,7 @@ async function allPages(services, input) {
 function routeFixture(services = fixture()) {
   let route, tool, service;
   apply({...services, effect: fn => fn(), provide: (_name, value) => {service = value; return () => {};},
-    connection: {admit: () => ({peer: {principal: {kind: 'owner'}}})},
+    connection: {admit: () => ({peer: {principal: {kind: 'owner'}}}), requestRejection: () => undefined},
     webServer: {register: value => {route = value; return () => {};}}, tools: {register: value => {tool = value; return () => {};}}});
   return {route, tool, service};
 }

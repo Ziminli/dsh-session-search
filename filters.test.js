@@ -205,7 +205,7 @@ test('plural scopes and time bounds have HTTP, agent tool and service parity inc
   const f = scopedFixture(), routes = new Map(), tools = new Map(); let service;
   Object.assign(f, {effect: fn => fn(), provide: (_key, value) => {service = value; return () => {};},
     webServer: {register: route => {routes.set(route.path, route); return () => {};}},
-    connection: {admit: () => ({peer: {principal: {kind: 'owner'}}})},
+    connection: {admit: () => ({peer: {principal: {kind: 'owner'}}}), requestRejection: () => undefined},
     tools: {register: tool => {tools.set(tool.name, tool); return () => {};}}});
   apply(f, {});
   const tool = tools.get('search_session_text');

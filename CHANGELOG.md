@@ -4,6 +4,11 @@ All package version changes must have an entry here before release. Entries are 
 
 Versions 1.2.0–1.2.2 were initially installed only locally and their changes first reached GitHub in **1.2.3**. They are now backfilled as separate historical tags/releases from recovered development snapshots; the existing 1.2.3 tag is unchanged. Each 1.3.x version also has its own tag and release. Earlier private-bundle version numbers are not public-package releases. / 1.2.0–1.2.2 最初仅在本地安装，其改动首次随 **1.2.3** 上传 GitHub；现已从开发快照恢复并补发独立历史标签与 Release，原 1.2.3 标签保持不变。1.3.x 各版本也分别发布，不合并成单一版本。更早的私有包版本号不属于本公开包的发布历史。
 
+## [1.4.2] - 2026-11-19
+
+### Changed / 变更
+- Every HTTP route handler now opens with the canonical DSH guard `ctx.connection.requestRejection(req)` (returning `401`/`403` for untrusted or unauthenticated requests) before the existing owner-peer check via `ctx.connection.admit()`. Behavior is unchanged — `requestRejection` applies the same Host/Origin fence and credential check — but the guard now matches the community catalog's audit convention verbatim. / 每个 HTTP 路由处理函数现在都以 DSH 规范防护 `ctx.connection.requestRejection(req)` 开头（不可信或未认证的请求返回 `401`/`403`），随后保留原有的 `ctx.connection.admit()` owner 身份检查。行为不变——`requestRejection` 施加的是同一套 Host/Origin 防栏与凭据检查——但防护写法现在与社区目录的审计约定逐字一致。
+
 ## [1.4.1] - 2026-11-18
 
 ### Documentation / 文档

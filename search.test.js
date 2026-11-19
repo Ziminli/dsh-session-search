@@ -417,7 +417,7 @@ test('groups preserve validation, VM deadlines, cancellation and partial-read wa
 });
 function routeFixture(admission, services = fixture()) {
   let route, tool, service;
-  apply({...services, effect: fn => fn(), provide: (_name, value) => {service = value; return () => {};}, connection: {admit: () => admission},
+  apply({...services, effect: fn => fn(), provide: (_name, value) => {service = value; return () => {};}, connection: {admit: () => admission, requestRejection: () => 'rejection' in admission ? admission.rejection : undefined},
     webServer: {register: value => {route = value; return () => {};}}, tools: {register: value => {tool = value; return () => {};}}});
   return {route, tool, service};
 }

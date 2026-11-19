@@ -14,7 +14,7 @@ function routes(admission = {peer: {principal: {kind: 'owner'}}}) {
   const registered = [], tools = [];
   const unexpected = () => {throw new Error('Highlight must not access stored sessions or settings');};
   apply({effect: fn => fn(), provide: () => () => {},
-    connection: {admit: () => admission},
+    connection: {admit: () => admission, requestRejection: () => 'rejection' in admission ? admission.rejection : undefined},
     webServer: {register: route => {registered.push(route); return () => {};}},
     tools: {register: tool => {tools.push(tool); return () => {};}},
     sessionQuery: new Proxy({}, {get: unexpected}), sessionController: new Proxy({}, {get: unexpected}),

@@ -30,8 +30,9 @@ export function apply(ctx, config) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    const refused = ctx.connection.requestRejection(req);
+    if (refused !== undefined) {res.writeHead(refused); res.end(JSON.stringify({error: 'Authentication required'})); return;}
     const admission = ctx.connection.admit({headers: req.headers});
-    if ('rejection' in admission) {res.writeHead(admission.rejection); res.end(JSON.stringify({error: 'Authentication required'})); return;}
     if (admission.peer.principal.kind !== 'owner') {res.writeHead(403); res.end(JSON.stringify({error: 'Owner access required'})); return;}
     if (!['GET', 'POST'].includes(req.method)) {res.setHeader('Allow', 'GET, POST'); res.writeHead(405); res.end(JSON.stringify({error: 'GET or POST required'})); return;}
     if (req.method === 'POST' && !/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {res.writeHead(415); res.end(JSON.stringify({error: 'JSON content type required'})); return;}
@@ -54,8 +55,9 @@ export function apply(ctx, config) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    const refused = ctx.connection.requestRejection(req);
+    if (refused !== undefined) {res.writeHead(refused); res.end(JSON.stringify({error: 'Authentication required'})); return;}
     const admission = ctx.connection.admit({headers: req.headers});
-    if ('rejection' in admission) {res.writeHead(admission.rejection); res.end(JSON.stringify({error: 'Authentication required'})); return;}
     if (admission.peer.principal.kind !== 'owner') {res.writeHead(403); res.end(JSON.stringify({error: 'Owner access required'})); return;}
     if (req.method !== 'POST') {res.setHeader('Allow', 'POST'); res.writeHead(405); res.end(JSON.stringify({error: 'POST required'})); return;}
     if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {res.writeHead(415); res.end(JSON.stringify({error: 'JSON content type required'})); return;}
@@ -69,11 +71,12 @@ export function apply(ctx, config) {
     }
   }}));
   ctx.effect(() => ctx.webServer.register({kind: 'exact', path: '/api/local-session-search', async handler(req, res) {
-    const admission = ctx.connection.admit({headers: req.headers});
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    if ('rejection' in admission) {res.writeHead(admission.rejection); res.end(JSON.stringify({error: 'Authentication required'})); return;}
+    const refused = ctx.connection.requestRejection(req);
+    if (refused !== undefined) {res.writeHead(refused); res.end(JSON.stringify({error: 'Authentication required'})); return;}
+    const admission = ctx.connection.admit({headers: req.headers});
     if (admission.peer.principal.kind !== 'owner') {res.writeHead(403); res.end(JSON.stringify({error: 'Owner access required'})); return;}
     if (req.method !== 'GET') {res.setHeader('Allow', 'GET'); res.writeHead(405); res.end(JSON.stringify({error: 'GET required'})); return;}
     const controller = new AbortController();

@@ -6,7 +6,7 @@ Search stored DeepSeek Harness (DSH) conversation text across all or selected wo
 
 See the bilingual [Changelog](<CHANGELOG.md>) for changes in every package version.
 
-An independent community plugin, not an official DSH package. **Package version: 1.4.1.**
+An independent community plugin, not an official DSH package. **Package version: 1.4.2.**
 
 ## Features
 
@@ -131,7 +131,7 @@ Search operates locally in the current DSH profile. It does not edit, resume, re
 
 ### HTTP route security
 
-Every HTTP route (`/api/local-session-search`, `/api/local-session-search-highlight`, `/api/local-session-search-settings`) passes each request through `ctx.connection.admit({headers})` — the same admission path DSH applies to its own `/api` bridge — before doing any work, and then requires an `owner` peer:
+Every HTTP route (`/api/local-session-search`, `/api/local-session-search-highlight`, `/api/local-session-search-settings`) opens its handler with the canonical DSH guard `const refused = ctx.connection.requestRejection(req)` — the same admission path DSH applies to its own `/api` bridge — and then requires an `owner` peer via `ctx.connection.admit()`:
 
 - DSH's Host/Origin fence refuses DNS-rebinding and cross-site requests (`403`).
 - A request must carry the host's signed browser-session cookie or a signed API credential; anonymous requests get `401`.
